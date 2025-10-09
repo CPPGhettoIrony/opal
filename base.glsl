@@ -209,11 +209,8 @@ float fresnel(Hit h) {return dot(normalize(camera_pos - h.pos), h.normal);}
 
 
 Hit world(Hit h) {
-    
     h.col = vec3(0.5);
-
     return h;
-
 }
 
 // Default material
@@ -708,7 +705,7 @@ Hit displace(Hit h, float d) {
 
 // CSG Operations
 
-Hit union(Hit a, Hit b) {
+Hit union_(Hit a, Hit b) {
     return (a.d < b.d) ? a : b;
 }
 
@@ -787,7 +784,7 @@ float smin(float d1, float d2, float k, out float h)
     return mix(d2, d1, h) - k * h * (1.0 - h);
 }
 
-Hit union(Hit a, Hit b, float k)
+Hit union_(Hit a, Hit b, float k)
 {
     // 1) choose the winner by raw distance
     Hit r = (a.d < b.d) ? a : b;
@@ -838,7 +835,7 @@ Hit intersect(Hit a, Hit b, float k) {
 
 Hit joint(Hit a, Hit b, Hit c, float k) {
     k = c.d >= epsilon? clamp(k - c.d, k, 0) : k;
-    return union(union(a, c), b, k);
+    return union_(union_(a, c), b, k);
 }
 
 Hit Operator(vec3 p);
@@ -847,14 +844,14 @@ Hit scene(vec3 p);
 Hit Operator(vec3 p){
 	Hit hit;
 	hit = sphere(p, vec3(-0.7129964828491211, 1.667661190032959, 0.0), 1.0,  1u);
-	hit = union(hit, sphere(p, vec3(0.6738172769546509, 1.667661190032959, 0.0), 0.5700000524520874,  2u), 0.4000000059604645);
+	hit = union_(hit, sphere(p, vec3(0.6738172769546509, 1.667661190032959, 0.0), 0.5700000524520874,  2u), 0.4000000059604645);
 	return hit;
 }
 
 Hit scene(vec3 p){
 	Hit hit;
 	hit = Operator(p);
-	hit = union(hit, ground(p, 0.0,  3u));
+	hit = union_(hit, ground(p, 0.0,  3u));
 	return hit;
 }
 // This will be replaced in opal.py
@@ -881,8 +878,8 @@ Hit raymarch(vec3 ro, vec3 rd) {
         t += h.d;
     }
 
-    if(!h.hit)
-        h = world(h);
+    h = world(h);
+    h.hit = false;
 
     return h; // background
 }
