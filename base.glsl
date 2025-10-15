@@ -13,7 +13,7 @@ const float maxDistance = 100.0;
 const float epsilon     = 0.001;
 
 const uint  imax        = 5u;
-const float amb         = .4;
+const float amb         = .5;
 
 uniform vec3 camera_pos;
 uniform vec3 camera_rot;
@@ -209,7 +209,7 @@ float fresnel(Hit h) {return dot(normalize(camera_pos - h.pos), h.normal);}
 
 
 Hit world(Hit h) {
-    h.col = vec3(0.5);
+    h.col = vec3(0.4,0.7,1);
     return h;
 }
 
@@ -249,11 +249,13 @@ Hit A(Hit h, vec2 uv) {return cartoon(vec3(1.0, 0.3, 0.), vec3(1.0, 1.0, 0.05), 
 Hit B(Hit h, vec2 uv) {return cartoon(vec3(0., 1.0, 0.3), vec3(0.05, 1.0, 1.0), 0.1, h, uv);}
 
 Hit floor(Hit h, vec2 uv) {
+
     h.col = (distance(uv, vec2(0.5))>0.5)? vec3(0.,0.,1.) : vec3(1., 1., 0);
     h.lco = h.col *.3;
     h.ref = 0.5;
     h.shn = 64;
     h.spc = 1;
+    h.lth = 0;
 
     return h;
 }
@@ -878,7 +880,6 @@ Hit raymarch(vec3 ro, vec3 rd) {
         t += h.d;
     }
 
-    h = world(h);
     h.hit = false;
 
     return h; // background
@@ -895,18 +896,13 @@ vec3 clampv01(vec3 v) {
     return vec3(clamp(v.x, 0, 1), clamp(v.y, 0, 1), clamp(v.z, 0, 1));
 }
 
-//Better shading colors?
-vec3 adjust(vec3 col, float f) {
-    return clampv01(col + vec3(f));
-}
-
 // Basic lighting
 vec3 phong(vec3 col, Hit h, Light l, vec3 viewDir) {
 
     // If the light is a point, the light direction is the difference between the light position and hit position
     vec3 vec = l.point? normalize(h.pos - l.vec) : l.vec;
 
-    vec3 ambient = adjust(col, -amb);
+    vec3 ambient = col - amb;
 
     float diff = max(dot(h.normal, -vec), 0.0);
     vec3 diffuse = col * diff;
@@ -944,7 +940,7 @@ vec3 shadow(vec3 col, Hit h, Light l) {
     float d = dot(h.normal, vec);
 
     if(d < 0 && shd.hit && (shd.len < length(h.pos - l.vec) || !l.point))
-        col = adjust(col, amb*d);
+        col = col + amb*d;
 
     return col;
 
@@ -989,7 +985,7 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
                 viewDir = normalize(ref.pos - ro);
                 bool line = abs(dot(refDir, ref.un)) < ref.lth;
                 ref.col = line? ref.lco :lighting(ref, ls, viewDir);
-            }
+            } else ref = world(ref);
 
             col         = mix(col, ref.col, hit.ref);
 
@@ -1008,7 +1004,7 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
                     viewDir = normalize(ref.pos - ro);
                     bool line = abs(dot(refDir, ref.un)) < ref.lth;
                     ref.col = line? ref.lco :lighting(ref, ls, viewDir);
-                }
+                } else ref = world(ref);
 
                 fref   *= ref.ref;
 
@@ -1025,7 +1021,7 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
 
     }
 
-    return vec4(.0);
+    return vec4(world(hit).col, 1.);
 
 }
 
