@@ -13,7 +13,6 @@ const float maxDistance = 100.0;
 const float epsilon     = 0.001;
 
 const uint  imax        = 5u;
-const float amb         = .5;
 
 uniform vec3 camera_pos;
 uniform vec3 camera_rot;
@@ -252,7 +251,7 @@ Hit floor(Hit h, vec2 uv) {
 
     h.col = (distance(uv, vec2(0.5))>0.5)? vec3(0.,0.,1.) : vec3(1., 1., 0);
     h.lco = h.col *.3;
-    h.ref = 0.5;
+    h.ref = 0.3;
     h.shn = 64;
     h.spc = 1;
     h.lth = 0;
@@ -887,9 +886,10 @@ Hit raymarch(vec3 ro, vec3 rd) {
 
 struct Light {
     vec3    col;    //  color
-    bool    point;   //  false = directional, true = point
+    bool    point;  //  false = directional, true = point
     vec3    vec;    //          Direction           Position
-    float   str;    //  Strength 
+    float   str;    //  Strength
+    float   amb;    //  Ambient 
 };
 
 vec3 clampv01(vec3 v) {
@@ -902,7 +902,7 @@ vec3 phong(vec3 col, Hit h, Light l, vec3 viewDir) {
     // If the light is a point, the light direction is the difference between the light position and hit position
     vec3 vec = l.point? normalize(h.pos - l.vec) : l.vec;
 
-    vec3 ambient = col - amb;
+    vec3 ambient = col * (l.amb);
 
     float diff = max(dot(h.normal, -vec), 0.0);
     vec3 diffuse = col * diff;
@@ -939,8 +939,10 @@ vec3 shadow(vec3 col, Hit h, Light l) {
 
     float d = dot(h.normal, vec);
 
-    if(d < 0 && shd.hit && (shd.len < length(h.pos - l.vec) || !l.point))
-        col = col + amb*d;
+    if(d < 0 && shd.hit && (shd.len < length(h.pos - l.vec) || !l.point)) {
+        vec3 sc = col*(1+d);
+        col = mix(sc, col, l.amb);
+    }
 
     return col;
 
@@ -985,6 +987,7 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
                 viewDir = normalize(ref.pos - ro);
                 bool line = abs(dot(refDir, ref.un)) < ref.lth;
                 ref.col = line? ref.lco :lighting(ref, ls, viewDir);
+                ref.col = shadows(ref.col, ref, ls);
             } else ref = world(ref);
 
             col         = mix(col, ref.col, hit.ref);
@@ -1004,6 +1007,7 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
                     viewDir = normalize(ref.pos - ro);
                     bool line = abs(dot(refDir, ref.un)) < ref.lth;
                     ref.col = line? ref.lco :lighting(ref, ls, viewDir);
+                    ref.col = shadows(ref.col, ref, ls);
                 } else ref = world(ref);
 
                 fref   *= ref.ref;
@@ -1035,11 +1039,13 @@ void main() {
     vec3 rd = rotationFromEuler2(camera_rot) * normalize(vec3(normCoord * fov, 1.0));
 
 
-Light ls[nLights] = Light[](
-	Light(vec3(1.0, 1.0, 1.0), false, rotationFromEuler(vec3(0.5814500451087952, 0.027379777282476425, -0.00509653752669692)) * vec3(.0, -1., .0), 1.0)
-);
-
-// This will be replaced in opal.py
+    Light ls[nLights] = Light[](
+        Light(vec3(1.0, 1.0, 1.0), 
+        true, 
+        vec3(0, 3, -1), 
+        1,
+        0.5)
+    );
 
     finalColor = render(ro, rd, ls);
 }
