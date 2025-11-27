@@ -697,6 +697,23 @@ Hit ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b, uint matID) {
     return ret;
 }
 
+float slopeFunc(vec3 p, vec3 pos, vec3 normal) {
+    return dot((p - pos), normal);
+}
+
+Hit slope(vec3 p, vec3 pos, vec3 normal, uint matID) {
+    Hit ret;
+    ret.d       = slopeFunc(p, pos, normal);
+    ret.len     = 0.0;
+    ret.pos     = p;
+    ret.normal  = normal;
+    ret.un      = normal;
+    ret.rfp     = pos;
+    ret.rfr     = mat3(1);
+    ret         = getMaterial(ret, matID);
+    return ret;
+}
+
 // Unary operators
 
 Hit displace(Hit h, float d) {
@@ -839,23 +856,72 @@ Hit joint(Hit a, Hit b, Hit c, float k) {
     return union_(union_(a, c), b, k);
 }
 
-Hit Operator(vec3 p);
-Hit scene(vec3 p);
+/*
+    THIS IS PROOF THAT:
+        ·   From slopes or planes, complex meshes can be rendered
+        ·   This could be transformed directly to a float returning the distance to the mesh, smoothed or not
+        ·   Other things such as:
+            ·   Displacement textures
+            Can be computed to float functions before transforming them to Hit objects
+        ·   The user will build objects directly with simple sdf functions, then apply textures (converting them to hit objects) as an unary operator
+        ·   sdf operators will be applied with the same name to primitives, the additional optional float adds smoothness, 
+            depending if the operator is applied to texturized (Hit) objects or unshaded objects (sdf floats), it will apply the Hit operator or the float operator
 
-Hit Operator(vec3 p){
-	Hit hit;
-	hit = sphere(p, vec3(-0.7129964828491211, 1.667661190032959, 0.0), 1.0,  1u);
-	hit = union_(hit, sphere(p, vec3(0.6738172769546509, 1.667661190032959, 0.0), 0.5700000524520874,  2u), 0.4000000059604645);
-	return hit;
+Example
+{
+    surface a = sphere(vec3(x, y, z), radius),          // shapes from sdfs without texture
+            b = cube(vec3(x, y, z), vec3(w, h, d));
+
+    texture tex(...);                                   // procedural texture that includes visual aspects (reflection, occlusion, color, transparency...)
+                                                        // and displacement
+
+    object  c(subtract(b, a, smoothing), tex);   // transforms the surface into a shaded hit object with the declared texture.
+
+    mesh teapot("teapot.obj", vec3(x, y, z), vec3(pitch, yaw, yadayada));  // Will use the faces and normals to render a mesh, meshes can also be formed procedurally        
+
+    surface d = surfaceFromMesh(teapot);                // The mesh can be edited, it will update in the formed tree.
+    surface e = link(...);                              // I dont have time to check what the arguments for a link surface were
+
+    texture tex2(...);
+
+    object  f(union(d, e, smoothing), tex2);
+
+    object  final = union(c, f, smoothing);             // Smooth operations on objects will "fuse" their materials 
+
 }
+
+    this code will be put onto a c++ file, these functions will add objects to a tree that will transcompile to:
+
+        ·   Glsl                // This will be implemented first
+        ·   Cuda
+        ·   Rocm
+        ·   OpenCL
+        ·   openVINO (for NPUs)
+
+*/
 
 Hit scene(vec3 p){
-	Hit hit;
-	hit = Operator(p);
-	hit = union_(hit, ground(p, 0.0,  3u));
+
+	Hit a = slope(p, vec3(0, 1, 2), vec3(0, 1, 0),  0u),
+        b = slope(p, vec3(0, 0, 1), vec3(0, 0,-1),  0u),
+        c = slope(p, vec3(0, 0, 2), vec3(0,-1, 0),  0u),
+        d = slope(p, vec3(0, 0, 2), vec3(0, 0, 1),  0u),
+        e = slope(p, vec3(0, 0, 2), vec3(-1,0, 0),  0u),
+        f = slope(p, vec3(1, 0, 2), vec3(1, 0, 0),  0u);
+
+    float k = 0.1;
+
+    Hit hit;
+    hit = intersect(a,   b, k);
+    hit = intersect(hit, c, k);
+    hit = intersect(hit, d, k);
+    hit = intersect(hit, e, k);
+    hit = intersect(hit, f, k);
+
+    hit = changeMaterial(hit, 3u);
+
 	return hit;
 }
-// This will be replaced in opal.py
 
 // Raymarching loop
 Hit raymarch(vec3 ro, vec3 rd) {
