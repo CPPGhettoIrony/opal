@@ -35,8 +35,8 @@ struct Hit {
     vec3    rfp;        // object reference pose        for mapping
     mat3    rfr;        // object reference rotation    for mapping
 
-    vec3    un;         // Unshaded normal
     vec3    normal;     // Normal of the hit surface
+    vec2    uv;         // UV coordinates
 
     uint    matID;      // Used for material operators;
 
@@ -44,10 +44,10 @@ struct Hit {
     float   ref;        // Reflectivity     
     float   shn;        // Shininess
     float   spc;        // Specular
+    float   trs;        // Transparency
 
     vec3    lco;        // Line color
     float   lth;        // Line thickness
-
 };
 
 /* - - - - - -  MATERIAL HELPERS - - - - */
@@ -196,7 +196,7 @@ float map_A(float i, float min0, float max0) {
 }
 
 // ONLY USE WITH A FUNCTION THAT HAS A VEC2 AS INPUT AND RETURNS A FLOAT
-#define BUMP(func, uv, normal, strength) bumpNormal(uv, normal, vec3(func(uv), func(vec2(epsilon, .0) + uv), func(vec2(.0, epsilon) + uv)), strength)
+#define BUMP(func, hit, strength) bumpNormal(hit.uv, hit.normal, vec3(func(hit.uv), func(vec2(epsilon, .0) + hit.uv), func(vec2(.0, epsilon) + hit.uv)), strength)
 
 // Direction & Fresnel
 
@@ -206,14 +206,13 @@ float fresnel(Hit h) {return dot(normalize(camera_pos - h.pos), h.normal);}
 
 /* - - - - - -  MATERIALS - - - - - - */
 
-
 Hit world(Hit h) {
     h.col = vec3(0.4,0.7,1);
     return h;
 }
 
 // Default material
-Hit def(Hit h, vec2 uv) {
+Hit def(Hit h) {
     
     h.col = vec3(1.);
     h.ref = 0;
@@ -223,38 +222,49 @@ Hit def(Hit h, vec2 uv) {
     return h;
 }
 
-
-float bump(vec2 uv) {
+float c_bump(vec2 uv) {
     uv *= 30;
-    return 1-map_A(voronoi(uv, 1., 0u), 0.2, 0.5);
+    return 1-map_A(voronoi(uv, 1., 0u), 0.3, 0.4);
 }
+  
+Hit cartoon(Hit h, vec3 col) {    
 
-Hit cartoon(vec3 col, vec3 shn, float thickness, Hit h, vec2 uv) {    
-
-    h.col = mix(col, shn, fresnel(h));
+    h.col = mix(col, col * 1.2, fresnel(h));
     h.lco = h.col *.3;
-    h.lth = 0.15;
-    h.ref = 0.3;
+    h.ref = 0;
     h.shn = 64;
     h.spc = 1;
+    h.lth = 0;
 
-    //h.normal = BUMP(bump, uv, h.normal, 0.002);
+    h.trs = 0.2;
+
+    //h.normal = BUMP(c_bump, h, 0.002);
 
     return h;
 
 }
 
-Hit A(Hit h, vec2 uv) {return cartoon(vec3(1.0, 0.3, 0.), vec3(1.0, 1.0, 0.05), 0.3, h, uv);}
-Hit B(Hit h, vec2 uv) {return cartoon(vec3(0., 1.0, 0.3), vec3(0.05, 1.0, 1.0), 0.1, h, uv);}
+Hit A(Hit h) {return cartoon(h, vec3(1.0, 0.3, 0.));}
+Hit B(Hit h) {return cartoon(h, vec3(0., 1.0, 0.3));}
+Hit C(Hit h) {return cartoon(h, vec3(0., 0.3, 1.0));}
 
-Hit floor(Hit h, vec2 uv) {
+float f_bump(vec2 uv) {
+    return map_A(1 - distance(uv, vec2(0.5)), 0.5, 0.6);
+}
 
-    h.col = (distance(uv, vec2(0.5))>0.5)? vec3(0.,0.,1.) : vec3(1., 1., 0);
+Hit floor(Hit h) {
+
+    float d = f_bump(h.uv);
+
+    h.col = (d>0.)? vec3(1., 1., 0) : vec3(0.,0.,1.);
     h.lco = h.col *.3;
     h.ref = 0.3;
     h.shn = 64;
     h.spc = 1;
     h.lth = 0;
+    h.trs = 0;
+
+    //h.normal = BUMP(f_bump, h, 0.2);
 
     return h;
 }
@@ -271,36 +281,37 @@ vec3 modv(vec3 v, float mx, float offset) {
     return vec3(mod(v.x + offset, mx), mod(v.y + offset, mx), mod(v.z + offset, mx));
 }
 
-Hit getMaterial(Hit h, uint matID) {
-
-    // reset normals if previously modified by another material
-    h.normal = h.un;
+Hit getMaterial(Hit h, vec3 norm, uint matID) {
 
     h.matID = matID;
 
     vec3 surfacePosition = modv(h.pos - h.rfp, 1., 0.);
 
-    vec3 n = pow(abs(h.normal), vec3(8.0));
-    n /= max(dot(n, vec3(1.0)), epsilon);
+    vec3 n = pow(abs(norm), vec3(8.0));
+    n /= max(dot(norm, vec3(1.0)), epsilon);
+
+    h.normal = norm;
 
     vec2 uvX = surfacePosition.yz;
     vec2 uvY = surfacePosition.xz;
     vec2 uvZ = surfacePosition.xy;
 
-    vec2 uv = averagev2(n, uvX, uvY, uvZ);
+    h.uv = averagev2(n, uvX, uvY, uvZ);
 
     switch(matID) {
      case 0u:
-            return def(h, uv);
+            return def(h);
      case 1u:
-            return A(h, uv);
+            return A(h);
      case 2u:
-            return B(h, uv);
+            return B(h);
      case 3u:
-            return floor(h, uv);
+            return C(h);
+     case 4u:
+            return floor(h);
 
         default:
-            return def(h, uv);
+            return def(h);
     }
     
 }
@@ -335,186 +346,111 @@ mat3 rotationFromEuler(vec3 euler) {
     return ry * rz * rx; 
 }
 
-// The camera uses a different.. thing? idk
-mat3 rotationFromEuler2(vec3 euler) {
-    float cx = cos(euler.x), sx = sin(euler.x);
-    float cy = cos(euler.y), sy = sin(euler.y);
-    float cz = cos(euler.z), sz = sin(euler.z);
-
-    mat3 rx = mat3(
-        1.0, 0.0, 0.0,
-        0.0, cx, -sx,
-        0.0, sx, cx
-    );
-
-    mat3 ry = mat3(
-        cy, 0.0, sy,
-        0.0, 1.0, 0.0,
-        -sy, 0.0, cy
-    );
-
-    mat3 rz = mat3(
-        cz, -sz, 0.0,
-        sz, cz, 0.0,
-        0.0, 0.0, 1.0
-    );
-
-    return rz * ry * rx; 
-}
-
 // We are applying the transform to the space, not the primitive, so we must apply the inverse transform
 vec3 applyTransform(vec3 p, vec3 pos, mat3 rot) {
     return transpose(rot) * (p - pos);
 }
 
-
 /* - - - - - -  PRIMITIVES - - - - - - */
 
 // Sphere
 
-float sphereFunc(vec3 p, vec3 pos, float r) {
+float sphere(vec3 p, vec3 pos, float r) {
     return length(p - pos) - r;
 }
 
-vec3 sphereNormal(vec3 p, vec3 pos, float r) {
-    const vec2 e = vec2(epsilon, 0.0);
-    return normalize(vec3(
-        sphereFunc(p + e.xyy, pos, r) - sphereFunc(p - e.xyy, pos, r),
-        sphereFunc(p + e.yxy, pos, r) - sphereFunc(p - e.yxy, pos, r),
-        sphereFunc(p + e.yyx, pos, r) - sphereFunc(p - e.yyx, pos, r)
-    ));
-}
-
-Hit sphere(vec3 p, vec3 pos, float r, uint matID) {
+Hit sphere(vec3 p, vec3 pos, float r, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = sphereFunc(p , pos, r);
-    ret.len     = 0.0;
+    ret.d       = sphere(p , pos, r);
     ret.pos     = p;
-    ret.normal  = sphereNormal(p, pos, r);
-    ret.un      = ret.normal;
     ret.rfp     = pos; 
     ret.rfr     = mat3(1.);
-    ret = getMaterial(ret, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
 // Ground
 
-Hit ground(vec3 p, float h, uint matID) {
+float ground(vec3 p, float h) {
+    return p.y - h;
+}
+
+Hit ground(vec3 p, float h, vec3 n, uint matID) {
     Hit ret;
     ret.d       = p.y - h;
-    ret.len     = 0.0;
     ret.pos     = p;
-    ret.normal  = vec3(0.0, 1.0, 0.0);
-    ret.un      = ret.normal;
     ret.rfp     = vec3(.0); 
     ret.rfr     = mat3(1.);
-    ret = getMaterial(ret, matID);
+    ret = getMaterial(ret, n, matID);
     return ret;
 }
 
 // Box
 
-float sdBox( vec3 p, vec3 b ) {
+float box( vec3 p, vec3 b ) {
     vec3 q = abs(p) - b;
     return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
 }
 
-float boxFunc(vec3 p, vec3 pos, mat3 rot, vec3 b ) {
-    return sdBox(applyTransform(p, pos, rot), b);
+float box(vec3 p, vec3 pos, mat3 rot, vec3 b ) {
+    return box(applyTransform(p, pos, rot), b);
 }
 
-vec3 boxNormal(vec3 p, vec3 pos, mat3 rot, vec3 b) {
-    const vec2 e = vec2(epsilon, 0.0);
-    return normalize(vec3(
-        boxFunc(p + e.xyy, pos, rot, b) - boxFunc(p - e.xyy, pos, rot, b),
-        boxFunc(p + e.yxy, pos, rot, b) - boxFunc(p - e.yxy, pos, rot, b),
-        boxFunc(p + e.yyx, pos, rot, b) - boxFunc(p - e.yyx, pos, rot, b)
-    ));
-}
-
-Hit box(vec3 p, vec3 pos, mat3 rot, vec3 b, uint matID) {
+Hit box(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = boxFunc(p, pos, rot, b);
-    ret.len     = 0.0;
+    ret.d       = box(p, pos, rot, b);
     ret.pos     = p;
-    ret.normal  = boxNormal(p, pos, rot, b);
-    ret.un      = ret.normal;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret         = getMaterial(ret, matID); 
+    ret         = getMaterial(ret, n, matID); 
     return ret;
 }
 
 // Torus
 
-float sdTorus( vec3 p, float r1, float r2 ) {
+float torus( vec3 p, float r1, float r2 ) {
   vec2 q = vec2(length(p.xz)-r1,p.y);
   return length(q)-r2;
 }
 
-float torusFunc(vec3 p, vec3 pos, mat3 rot, float r1, float r2) {
-    return sdTorus(applyTransform(p, pos, rot), r1, r2);
+float torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2) {
+    return torus(applyTransform(p, pos, rot), r1, r2);
 }
 
-vec3 torusNormal(vec3 p, vec3 pos, mat3 rot, float r1, float r2) {
-    const vec2 e = vec2(epsilon, 0.0);
-    return normalize(vec3(
-        torusFunc(p + e.xyy, pos, rot, r1, r2) - torusFunc(p - e.xyy, pos, rot, r1, r2),
-        torusFunc(p + e.yxy, pos, rot, r1, r2) - torusFunc(p - e.yxy, pos, rot, r1, r2),
-        torusFunc(p + e.yyx, pos, rot, r1, r2) - torusFunc(p - e.yyx, pos, rot, r1, r2)
-    ));
-}
-
-Hit torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2, uint matID) {
+Hit torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = torusFunc(p, pos, rot, r1, r2);
-    ret.len     = 0.0;
+    ret.d       = torus(p, pos, rot, r1, r2);
     ret.pos     = p;
-    ret.normal  = torusNormal(p, pos, rot, r1, r2);
-    ret.un      = ret.normal;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret         = getMaterial(ret, matID); 
+    ret         = getMaterial(ret, n, matID); 
     return ret;
 }
 
 // Link
 
-float sdLink( vec3 p, float le, float r1, float r2 ) {
+float link( vec3 p, float le, float r1, float r2 ) {
     vec3 q = vec3( p.x, max(abs(p.y)-le,0.0), p.z );
     return length(vec2(length(q.xy)-r1,q.z)) - r2;
 }
 
-float linkFunc(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2) {
-    return sdLink(applyTransform(p, pos, rot), le, r1, r2);
+float link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2) {
+    return link(applyTransform(p, pos, rot), le, r1, r2);
 }
 
-vec3 linkNormal(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2) {
-    const vec2 e = vec2(epsilon, 0.0);
-    return normalize(vec3(
-        linkFunc(p + e.xyy, pos, rot, le, r1, r2) - linkFunc(p - e.xyy, pos, rot, le, r1, r2),
-        linkFunc(p + e.yxy, pos, rot, le, r1, r2) - linkFunc(p - e.yxy, pos, rot, le, r1, r2),
-        linkFunc(p + e.yyx, pos, rot, le, r1, r2) - linkFunc(p - e.yyx, pos, rot, le, r1, r2)
-    ));
-}
-
-Hit link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2, uint matID) {
+Hit link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = linkFunc(p, pos, rot, le, r1, r2);
-    ret.len     = 0.0;
+    ret.d       = link(p, pos, rot, le, r1, r2);
     ret.pos     = p;
-    ret.normal  = linkNormal(p, pos, rot, le, r1, r2);
-    ret.un      = ret.normal;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret         = getMaterial(ret, matID); 
+    ret         = getMaterial(ret, n, matID); 
     return ret;
 }
 
 // Cone
 
-float sdCone(vec3 p, vec2 q) {
+float cone(vec3 p, vec2 q) {
     // c is the sin/cos of the angle, h is height
     // Alternatively pass q instead of (c,h),
     // which is the point at the base in 2D
@@ -528,101 +464,66 @@ float sdCone(vec3 p, vec2 q) {
     return sqrt(d)*sign(s);
 }
 
-float coneFunc(vec3 p, vec3 pos, mat3 rot, float r, float h) {
-    return sdCone(applyTransform(p, pos, rot), vec2(r, -h));
+float cone(vec3 p, vec3 pos, mat3 rot, float r, float h) {
+    return cone(applyTransform(p, pos, rot), vec2(r, -h));
 }
 
-vec3 coneNormal(vec3 p, vec3 pos, mat3 rot, float r, float h) {
-    const vec2 e = vec2(epsilon, 0.0);
-    return normalize(vec3(
-        coneFunc(p + e.xyy, pos, rot, r, h) - coneFunc(p - e.xyy, pos, rot, r, h),
-        coneFunc(p + e.yxy, pos, rot, r, h) - coneFunc(p - e.yxy, pos, rot, r, h),
-        coneFunc(p + e.yyx, pos, rot, r, h) - coneFunc(p - e.yyx, pos, rot, r, h)
-    ));
-}
-
-Hit cone(vec3 p, vec3 pos, mat3 rot, float r, float h, uint matID) {
+Hit cone(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = coneFunc(p, pos, rot, r, h);
-    ret.len     = 0.0;
+    ret.d       = cone(p, pos, rot, r, h);
     ret.pos     = p;
-    ret.normal  = coneNormal(p, pos, rot, r, h);
-    ret.un      = ret.normal;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret         = getMaterial(ret, matID); 
+    ret         = getMaterial(ret, n, matID); 
     return ret;
 }
 
 // Capsule 
 
-float sdCapsule( vec3 p, float r, float h ) {
+float capsule( vec3 p, float r, float h ) {
     p.y -= clamp( p.y, 0.0, h );
     return length( p ) - r;
 }
 
-float capsuleFunc(vec3 p, vec3 pos, mat3 rot, float r, float h) {
-    return sdCapsule(applyTransform(p, pos, rot), r, h);
+float capsule(vec3 p, vec3 pos, mat3 rot, float r, float h) {
+    return capsule(applyTransform(p, pos, rot), r, h);
 }
 
-vec3 capsuleNormal(vec3 p, vec3 pos, mat3 rot, float r, float h) {
-    const vec2 e = vec2(epsilon, 0.0);
-    return normalize(vec3(
-        capsuleFunc(p + e.xyy, pos, rot, r, h) - capsuleFunc(p - e.xyy, pos, rot, r, h),
-        capsuleFunc(p + e.yxy, pos, rot, r, h) - capsuleFunc(p - e.yxy, pos, rot, r, h),
-        capsuleFunc(p + e.yyx, pos, rot, r, h) - capsuleFunc(p - e.yyx, pos, rot, r, h)
-    ));
-}
-
-Hit capsule(vec3 p, vec3 pos, mat3 rot, float r, float h, uint matID) {
+Hit capsule(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = capsuleFunc(p, pos, rot, r, h);
+    ret.d       = capsule(p, pos, rot, r, h);
     ret.len     = 0.0;
     ret.pos     = p;
-    ret.normal  = capsuleNormal(p, pos, rot, r, h);
-    ret.un      = ret.normal;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret         = getMaterial(ret, matID); 
+    ret         = getMaterial(ret, n, matID); 
     return ret;
 }
 
 // Cylinder
 
-float sdCylinder( vec3 p, float r, float h ) {
+float cylinder( vec3 p, float r, float h ) {
     vec2 d = abs(vec2(length(p.xz),p.y)) - vec2(r,h);
     return min(max(d.x,d.y),0.0) + length(max(d,0.0));
 }
 
-float cylinderFunc(vec3 p, vec3 pos, mat3 rot, float r, float h) {
-    return sdCylinder(applyTransform(p, pos, rot), r, h);
+float cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h) {
+    return cylinder(applyTransform(p, pos, rot), r, h);
 }
 
-vec3 cylinderNormal(vec3 p, vec3 pos, mat3 rot, float r, float h) {
-    const vec2 e = vec2(epsilon, 0.0);
-    return normalize(vec3(
-        cylinderFunc(p + e.xyy, pos, rot, r, h) - cylinderFunc(p - e.xyy, pos, rot, r, h),
-        cylinderFunc(p + e.yxy, pos, rot, r, h) - cylinderFunc(p - e.yxy, pos, rot, r, h),
-        cylinderFunc(p + e.yyx, pos, rot, r, h) - cylinderFunc(p - e.yyx, pos, rot, r, h)
-    ));
-}
-
-Hit cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h, uint matID) {
+Hit cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = cylinderFunc(p, pos, rot, r, h);
-    ret.len     = 0.0;
+    ret.d       = cylinder(p, pos, rot, r, h);
     ret.pos     = p;
-    ret.normal  = cylinderNormal(p, pos, rot, r, h);
-    ret.un      = ret.normal;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret         = getMaterial(ret, matID); 
+    ret         = getMaterial(ret, n, matID); 
     return ret;
 }
 
 // Octahedron
 
-float sdOctahedron( vec3 p, float s ) {
+float octahedron( vec3 p, float s ) {
 
   p = abs(p);
   float m = p.x+p.y+p.z-s;
@@ -637,80 +538,65 @@ float sdOctahedron( vec3 p, float s ) {
 
 }
 
-float octahedronFunc(vec3 p, vec3 pos, mat3 rot, float s) {
-    return sdOctahedron(applyTransform(p, pos, rot), s);
+float octahedron(vec3 p, vec3 pos, mat3 rot, float s) {
+    return octahedron(applyTransform(p, pos, rot), s);
 }
 
-vec3 octahedronNormal(vec3 p, vec3 pos, mat3 rot, float s) {
-    const vec2 e = vec2(epsilon, 0.0);
-    return normalize(vec3(
-        octahedronFunc(p + e.xyy, pos, rot, s) - octahedronFunc(p - e.xyy, pos, rot, s),
-        octahedronFunc(p + e.yxy, pos, rot, s) - octahedronFunc(p - e.yxy, pos, rot, s),
-        octahedronFunc(p + e.yyx, pos, rot, s) - octahedronFunc(p - e.yyx, pos, rot, s)
-    ));
-}
-
-Hit octahedron(vec3 p, vec3 pos, mat3 rot, float s, uint matID) {
+Hit octahedron(vec3 p, vec3 pos, mat3 rot, float s, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = octahedronFunc(p, pos, rot, s);
+    ret.d       = octahedron(p, pos, rot, s);
     ret.len     = 0.0;
     ret.pos     = p;
-    ret.normal  = octahedronNormal(p, pos, rot, s);
-    ret.un      = ret.normal;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret         = getMaterial(ret, matID); 
+    ret         = getMaterial(ret, n, matID); 
     return ret;
 }
 
 // Ellipsoid
 
-float sdEllipsoid( vec3 p, vec3 r ) {
+float ellipsoid( vec3 p, vec3 r ) {
   float k0 = length(p/r);
   float k1 = length(p/(r*r));
   return k0*(k0-1.0)/k1;
 }
 
-float ellipsoidFunc(vec3 p, vec3 pos, mat3 rot, vec3 b ) {
-    return sdEllipsoid(applyTransform(p, pos, rot), b);
+float ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b ) {
+    return ellipsoid(applyTransform(p, pos, rot), b);
 }
 
-vec3 ellipsoidNormal(vec3 p, vec3 pos, mat3 rot, vec3 b) {
-    const vec2 e = vec2(epsilon, 0.0);
-    return normalize(vec3(
-        ellipsoidFunc(p + e.xyy, pos, rot, b) - ellipsoidFunc(p - e.xyy, pos, rot, b),
-        ellipsoidFunc(p + e.yxy, pos, rot, b) - ellipsoidFunc(p - e.yxy, pos, rot, b),
-        ellipsoidFunc(p + e.yyx, pos, rot, b) - ellipsoidFunc(p - e.yyx, pos, rot, b)
-    ));
-}
-
-Hit ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b, uint matID) {
+Hit ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = ellipsoidFunc(p, pos, rot, b);
+    ret.d       = ellipsoid(p, pos, rot, b);
     ret.len     = 0.0;
     ret.pos     = p;
-    ret.normal  = ellipsoidNormal(p, pos, rot, b);
-    ret.un      = ret.normal;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret         = getMaterial(ret, matID); 
+    ret         = getMaterial(ret, n, matID); 
     return ret;
 }
 
-float slopeFunc(vec3 p, vec3 pos, vec3 normal) {
+float slope(vec3 p, vec3 pos, vec3 normal) {
     return dot((p - pos), normal);
 }
 
-Hit slope(vec3 p, vec3 pos, vec3 normal, uint matID) {
+Hit slope(vec3 p, vec3 pos, vec3 normal, vec3 n, uint matID) {
     Hit ret;
-    ret.d       = slopeFunc(p, pos, normal);
-    ret.len     = 0.0;
+    ret.d       = slope(p, pos, normal);
     ret.pos     = p;
-    ret.normal  = normal;
-    ret.un      = normal;
     ret.rfp     = pos;
     ret.rfr     = mat3(1);
-    ret         = getMaterial(ret, matID);
+    ret         = getMaterial(ret, n, matID);
+    return ret;
+}
+
+Hit toHit(float d, vec3 p, vec3 rfp, mat3 rfr, vec3 n, uint matID) {
+    Hit ret;
+    ret.d       = d;
+    ret.pos     = p;
+    ret.rfp     = rfp;
+    ret.rfr     = rfr;
+    ret         = getMaterial(ret, n, matID);
     return ret;
 }
 
@@ -723,35 +609,7 @@ Hit displace(Hit h, float d) {
 
 // CSG Operations
 
-Hit union_(Hit a, Hit b) {
-    return (a.d < b.d) ? a : b;
-}
-
-Hit intersect(Hit a, Hit b) {
-    return (a.d > b.d) ? a : b;
-}
-
-Hit subtract(Hit a, Hit b) {
-    Hit r;
-    r.d = max(a.d, -b.d);
-    
-    // Which object defines the surface? Usually, the one with the greater distance
-    if (a.d > -b.d) {
-        r = a;
-    } else {
-        r = b;
-        r.normal = -b.normal; // Invert B's normal
-        r.un     = -b.un;
-    }
-
-    r.d = max(a.d, -b.d); // Always reassign correct distance
-    return r;
-}
-
 Hit blendMaterials(Hit r, Hit a, Hit b, float hBlend) {
-
-    r.un        = normalize(mix(b.un, a.un, hBlend));
-    r.normal    = normalize(mix(b.normal, a.normal, hBlend));
 
     r.col       = mix(b.col, a.col, hBlend);
     r.ref       = mix(b.ref, a.ref, hBlend);
@@ -761,6 +619,8 @@ Hit blendMaterials(Hit r, Hit a, Hit b, float hBlend) {
 
     r.lth       = mix(b.lth, a.lth, hBlend);
     r.lco       = mix(b.lco, a.lco, hBlend);
+
+    r.trs       = mix(b.trs, a.trs, hBlend);
 
     r.matID     = b.matID;
 
@@ -777,22 +637,9 @@ Hit morph(Hit a, Hit b, float k) {
     return r;
 }
 
-Hit changeMaterial(Hit a, uint matID) {
-    a = getMaterial(a, matID);
+Hit changeMaterial(Hit a, vec3 n, uint matID) {
+    a = getMaterial(a, n, matID);
     return a;
-}
-
-Hit color(Hit a, Hit b, float k) {
-
-    Hit ab      = changeMaterial(a, b.matID);
-    Hit area    = intersect(a,  b);
-
-    float d;
-    if(k == 0) d = area.d < epsilon? 1 : 0;
-    else
-        d = (area.d >= epsilon)? clamp(k - area.d, 0, k)/k : 1;
-
-    return morph(ab, a, d);
 }
 
 // polynomial smooth‑min helper
@@ -802,13 +649,26 @@ float smin(float d1, float d2, float k, out float h)
     return mix(d2, d1, h) - k * h * (1.0 - h);
 }
 
-Hit union_(Hit a, Hit b, float k)
-{
+float union_(float a, float b) {
+    return (a < b) ? a : b;
+}
+
+float union_(float a, float b, float k) {
+    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+Hit union_(Hit a, Hit b) {
+    return (a.d < b.d) ? a : b;
+}
+
+Hit union_(Hit a, Hit b, float k) {
+
     // 1) choose the winner by raw distance
     Hit r = (a.d < b.d) ? a : b;
     
     // 2) compute the blended distance (also get blend factor h)
-    float hBlend;
+    float     hBlend;
     r.d     = smin(a.d, b.d, k, hBlend);
 
     r = blendMaterials(r, a, b, hBlend);
@@ -822,12 +682,24 @@ float smax(float d1, float d2, float k, out float h) {
     return mix(d2, d1, h) + k * h * (1.0 - h);
 }
 
-Hit subtract(Hit a, Hit b, float k) {
-    
-    Hit r = (a.d > -b.d) ? a : b; // Choose the winner by raw distance for initial guess
+float subtract(float a, float b) {
+    return (a > -b) ? a : b;
+}
 
-    b.normal    = -b.normal;
-    b.un        = -b.un;
+float subtract(float a, float b, float k) {
+    float h = clamp(0.5 - 0.5 * (-b - a) / k, 0.0, 1.0);
+    return mix(-b, a, h) + k * h * (1.0 - h);
+}
+
+Hit subtract(Hit a, Hit b) {
+    Hit r = (a.d > -b.d) ? a : b;
+    r.d = max(a.d, -b.d);
+    return r;
+}
+
+Hit subtract(Hit a, Hit b, float k) {
+
+    Hit r = (a.d > -b.d) ? a : b; // Choose the winner by raw distance for initial guess
 
     float hBlend;
     // The smooth maximum for a and -b.d
@@ -838,9 +710,22 @@ Hit subtract(Hit a, Hit b, float k) {
     return r;
 }
 
+float intersect(float a, float b) {
+    return (a > b) ? a : b;
+}
+
+float intersect(float a, float b, float k) {
+    float h = clamp(0.5 - 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) + k * h * (1.0 - h);
+}
+
+Hit intersect(Hit a, Hit b) {
+    return (a.d > b.d) ? a : b;
+}
+
 Hit intersect(Hit a, Hit b, float k) {
     
-    Hit r = (a.d > -b.d) ? a : b; // Choose the winner by raw distance for initial guess
+    Hit r = (a.d > b.d) ? a : b; // Choose the winner by raw distance for initial guess
 
     float hBlend;
     // The smooth maximum for a and -b.d
@@ -851,94 +736,168 @@ Hit intersect(Hit a, Hit b, float k) {
     return r;
 }
 
+Hit color(Hit a, Hit b, float k, vec3 n) {
+
+    Hit ab      = changeMaterial(a, n, b.matID);
+    Hit area    = intersect(a,  b);
+
+    float d;
+    if(k == 0) d = area.d < epsilon? 1 : 0;
+    else
+        d = (area.d >= epsilon)? clamp(k - area.d, 0, k)/k : 1;
+
+    return morph(ab, a, d);
+}
+
+float joint(float a, float b, float c, float k) {
+    k = (c >= epsilon)? clamp(k - c, k, 0) : k;
+    return union_(union_(a, c), b, k);
+}
+
 Hit joint(Hit a, Hit b, Hit c, float k) {
-    k = c.d >= epsilon? clamp(k - c.d, k, 0) : k;
+    k = (c.d >= epsilon)? clamp(k - c.d, k, 0) : k;
     return union_(union_(a, c), b, k);
 }
 
 /*
     THIS IS PROOF THAT:
-        ·   From slopes or planes, complex meshes can be rendered
-        ·   This could be transformed directly to a float returning the distance to the mesh, smoothed or not
-        ·   Other things such as:
-            ·   Displacement textures
-            Can be computed to float functions before transforming them to Hit objects
-        ·   The user will build objects directly with simple sdf functions, then apply textures (converting them to hit objects) as an unary operator
-        ·   sdf operators will be applied with the same name to primitives, the additional optional float adds smoothness, 
-            depending if the operator is applied to texturized (Hit) objects or unshaded objects (sdf floats), it will apply the Hit operator or the float operator
+        ·   From slopes complex meshes can be rendered
 
-Example
-{
-    surface a = sphere(vec3(x, y, z), radius),          // shapes from sdfs without texture
-            b = cube(vec3(x, y, z), vec3(w, h, d));
-
-    texture tex(...);                                   // procedural texture that includes visual aspects (reflection, occlusion, color, transparency...)
-                                                        // and displacement
-
-    object  c(subtract(b, a, smoothing), tex);   // transforms the surface into a shaded hit object with the declared texture.
-
-    mesh teapot("teapot.obj", vec3(x, y, z), vec3(pitch, yaw, yadayada));  // Will use the faces and normals to render a mesh, meshes can also be formed procedurally        
-
-    surface d = surfaceFromMesh(teapot);                // The mesh can be edited, it will update in the formed tree.
-    surface e = link(...);                              // I dont have time to check what the arguments for a link surface were
-
-    texture tex2(...);
-
-    object  f(union(d, e, smoothing), tex2);
-
-    object  final = union(c, f, smoothing);             // Smooth operations on objects will "fuse" their materials 
-
-}
-
-    this code will be put onto a c++ file, these functions will add objects to a tree that will transcompile to:
-
-        ·   Glsl                // This will be implemented first
-        ·   Cuda
-        ·   Rocm
-        ·   OpenCL
-        ·   openVINO (for NPUs)
+    This shader code will be ported to c++ in a way that, using pragmas, the compiler will produce:
+        ·   glsl code
+        ·   opencl code
+        ·   cuda code
+        ·   rocm code
+        ·   openVINO code for intel NPUs
+        ·   code for NVIDIA NPUs
+    
+    Or syncrhonized combinations of these
 
 */
 
-Hit scene(vec3 p){
+// n equals the normal, if calculated. if n != 0, then material functions must be executed
+Hit scene(vec3 p, vec3 n){
 
-	Hit a = slope(p, vec3(0, 1, 2), vec3(0, 1, 0),  0u),
-        b = slope(p, vec3(0, 0, 1), vec3(0, 0,-1),  0u),
-        c = slope(p, vec3(0, 0, 2), vec3(0,-1, 0),  0u),
-        d = slope(p, vec3(0, 0, 2), vec3(0, 0, 1),  0u),
-        e = slope(p, vec3(0, 0, 2), vec3(-1,0, 0),  0u),
-        f = slope(p, vec3(1, 0, 2), vec3(1, 0, 0),  0u);
+    /*
+	float   a = slope(p, vec3(0, 1, 2), vec3(0, 1, 0)),
+            b = slope(p, vec3(0, 0, 1), vec3(0, 0,-1)),
+            c = slope(p, vec3(0, 0, 2), vec3(0,-1, 0)),
+            d = slope(p, vec3(0, 0, 2), vec3(0, 0, 1)),
+            e = slope(p, vec3(0, 0, 2), vec3(-1,0, 0)),
+            f = slope(p, vec3(1, 0, 2), vec3(1, 0, 0));
 
     float k = 0.1;
 
-    Hit hit;
-    hit = intersect(a,   b, k);
-    hit = intersect(hit, c, k);
-    hit = intersect(hit, d, k);
-    hit = intersect(hit, e, k);
-    hit = intersect(hit, f, k);
+    float dst;
+    dst = intersect(a,   b, k);
+    dst = intersect(dst, c, k);
+    dst = intersect(dst, d, k);
+    dst = intersect(dst, e, k);
+    dst = intersect(dst, f, k);
 
-    hit = changeMaterial(hit, 3u);
+	return toHit(dst, p, vec3(0), mat3(1), 3u);
+    */
 
-	return hit;
+    Hit     a   = box(p, vec3(0.6, 1, 0.25), mat3(1), vec3(0.3), n, 1u),
+            b   = sphere(p, vec3(0.2, 1, 0.25), 0.2, n, 2u),
+            c   = union_(a, b, 0.3);
+
+    float   fa  = box(p, vec3(0.6, 1, -0.25), mat3(1), vec3(0.3)),
+            fb  = sphere(p, vec3(0.2, 1, -0.25), 0.2),
+            fc  = union_(fa, fb, 0.3);
+    
+    Hit     cc  = toHit(fc, p, vec3(0, 0, 0.25), mat3(1), n, 3u);
+
+    Hit     gr  = ground(p, 0, n, 4u);
+
+    return union_(gr, union_(c, cc, 0.1));
 }
 
 // Raymarching loop
 Hit raymarch(vec3 ro, vec3 rd) {
 
-    Hit h;
-    h.dir = normalize(-rd);
+    const vec2 e = vec2(epsilon, 0.0);
+
+    Hit h, h1, h2, h3, h4, h5, h6;
 
     float t = 0.0;
 
     for (int i = 0; i < 512 && t < maxDistance; ++i) {
 
         vec3 p = ro + rd * t;
-        h = scene(p);
+
+        h  = scene(p, vec3(0, 0, 0));
 
         if (h.d < epsilon) {
+
+            h1 = scene(p + e.xyy, vec3(0, 0, 0));
+            h2 = scene(p - e.xyy, vec3(0, 0, 0));
+
+            h3 = scene(p + e.yxy, vec3(0, 0, 0));
+            h4 = scene(p - e.yxy, vec3(0, 0, 0));
+
+            h5 = scene(p + e.yyx, vec3(0, 0, 0));
+            h6 = scene(p - e.yyx, vec3(0, 0, 0));
+
+            vec3 normal = normalize(vec3(h1.d - h2.d, h3.d - h4.d, h5.d - h6.d));
+
+            h = scene(p, normal);
+
+            h.dir = normalize(-rd);
             h.len = t;
             h.hit = true;
+
+            return h;
+        }
+            
+        t += h.d;
+    }
+
+    h.hit = false;
+
+    return h; // background
+}
+
+Hit neg_scene(vec3 p, vec3 n) {
+    Hit ret = scene(p, n);
+    ret.d = -ret.d;
+    return ret;
+}
+
+// Raymarching loop within objects for transparency
+Hit reverse_raymarch(vec3 ro, vec3 rd) {
+
+    const vec2 e = vec2(epsilon, 0.0);
+
+    Hit h, h1, h2, h3, h4, h5, h6;
+
+    float t = 0.0;
+
+    for (int i = 0; i < 512 && t < maxDistance; ++i) {
+
+        vec3 p = ro + rd * t;
+
+        h  = neg_scene(p, vec3(0, 0, 0));
+
+        if (h.d < epsilon) {
+
+            h1 = neg_scene(p + e.xyy, vec3(0, 0, 0));
+            h2 = neg_scene(p - e.xyy, vec3(0, 0, 0));
+
+            h3 = neg_scene(p + e.yxy, vec3(0, 0, 0));
+            h4 = neg_scene(p - e.yxy, vec3(0, 0, 0));
+
+            h5 = neg_scene(p + e.yyx, vec3(0, 0, 0));
+            h6 = neg_scene(p - e.yyx, vec3(0, 0, 0));
+
+            vec3 normal = normalize(vec3(h1.d - h2.d, h3.d - h4.d, h5.d - h6.d));
+
+            h = neg_scene(p, normal);
+
+            h.dir = normalize(-rd);
+            h.len = t;
+            h.hit = true;
+
             return h;
         }
             
@@ -1022,6 +981,20 @@ vec3 shadows(vec3 col, Hit h, Light ls[nLights]) {
     return col;
 }
 
+vec3 basic_shading(Hit hit, Light ls[nLights], vec3 viewDir) {
+
+    //Line thickness
+    if(abs(dot(viewDir, hit.normal)) < hit.lth) return hit.lco;
+
+    vec3 col = hit.col;
+    // Add lighting
+    col = lighting(hit, ls, viewDir);
+
+    return col;
+}
+
+//vec3 get_reflection(Hit hit, Light ls[nlights], vec3 viewDir)
+
 vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
 
     vec3 viewDir = normalize(-rd);
@@ -1031,15 +1004,11 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
     // The skybox (when theres no hit, it renders the skybox, there's nothing to shadow or reflect there)
     if(hit.hit) {
 
-        //return vec4(dot(viewDir, hit.normal), 0., 0., 1.);
+        //return vec4(vec3(mix(vec3(0.5), vec3(1), dot(viewDir, hit.normal))), 1.) * vec4(hit.col, 1.);
 
-        //Line thickness
-        if(abs(dot(viewDir, hit.un)) < hit.lth) return vec4(hit.lco, 1);
+        vec3 col = basic_shading(hit, ls, viewDir);
 
-        vec3 col = hit.col;
-
-        // Add lighting
-        col = lighting(hit, ls, viewDir);
+        if(col == hit.lco) return vec4(col, 1);
 
         if(hit.ref > 0) {
 
@@ -1049,14 +1018,10 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
 
             // Apply first iteration reflection + shading + line thickness
 
-            if(ref.hit) {
-                viewDir = normalize(ref.pos - ro);
-                bool line = abs(dot(refDir, ref.un)) < ref.lth;
-                ref.col = line? ref.lco :lighting(ref, ls, viewDir);
-                ref.col = shadows(ref.col, ref, ls);
-            } else ref = world(ref);
+            if(ref.hit) rcol = basic_shading(ref, ls, viewDir);
+            else rcol = world(ref).col;
 
-            col         = mix(col, ref.col, hit.ref);
+            col         = mix(col, rcol, hit.ref);
 
             // Final reflection value
             float fref  = hit.ref;
@@ -1071,14 +1036,14 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
 
                 if(ref.hit) {
                     viewDir = normalize(ref.pos - ro);
-                    bool line = abs(dot(refDir, ref.un)) < ref.lth;
+                    bool line = abs(dot(refDir, ref.normal)) < ref.lth;
                     ref.col = line? ref.lco :lighting(ref, ls, viewDir);
                     ref.col = shadows(ref.col, ref, ls);
                 } else ref = world(ref);
 
                 fref   *= ref.ref;
 
-                col     = mix(col, ref.col, fref);
+                col     = mix(col, rcol, fref);
 
             }
 
@@ -1102,15 +1067,15 @@ void main() {
     vec2 normCoord = (2.0 * (vec2(1) - uv) * u_resolution - u_resolution) / u_resolution.y;
 
     vec3 ro = camera_pos;
-    vec3 rd = rotationFromEuler2(camera_rot) * normalize(vec3(normCoord * fov, 1.0));
+    vec3 rd = rotationFromEuler(camera_rot) * normalize(vec3(normCoord * fov, 1.0));
 
 
     Light ls[nLights] = Light[](
         Light(vec3(1.0, 1.0, 1.0), 
-        true, 
-        vec3(0, 3, -1), 
-        1,
-        0.5)
+        false, 
+        normalize(vec3(0.75, -1, 0.3)), 
+        0.9,
+        0.6)
     );
 
     finalColor = render(ro, rd, ls);
