@@ -238,7 +238,7 @@ Hit cartoon(Hit h, vec3 col) {
 
     h.trs = 0.3;
 
-    //h.normal = BUMP(c_bump, h, 0.002);
+    h.normal = BUMP(c_bump, h, 0.002);
 
     return h;
 
@@ -775,6 +775,13 @@ Hit joint(Hit a, Hit b, Hit c, float k) {
 
 */
 
+Hit test(vec3 p, vec3 pos, vec3 n) {
+    Hit     a   = box(p, vec3(0, 0, 0) + pos, mat3(1), vec3(0.2), n, 1u),
+            b   = sphere(p, vec3(0, 0.2, 0) + pos, 0.2, n, 2u),
+            c   = union_(a, b, 0.1);
+    return c;
+}
+
 // n equals the normal, if calculated. if n != 0, then material functions must be executed
 Hit scene(vec3 p, vec3 n){
 
@@ -798,19 +805,12 @@ Hit scene(vec3 p, vec3 n){
 	return toHit(dst, p, vec3(0), mat3(1), 3u);
     */
 
-    Hit     a   = box(p, vec3(0.6, 1, 0.25), mat3(1), vec3(0.3), n, 1u),
-            b   = sphere(p, vec3(0.2, 1, 0.25), 0.2, n, 2u),
-            c   = union_(a, b, 0.3);
+    Hit a = test(p, vec3(0, 1, 0), n);
+    a = union_(a, test(p, vec3(-0.5, 1.5, 0), n));
+    a = union_(a, test(p, vec3(-1, 2, 0), n));
+    //a = union_(a, ground(p, -0.5, n, 4u));
 
-    float   fa  = box(p, vec3(0.6, 1, -0.25), mat3(1), vec3(0.3)),
-            fb  = sphere(p, vec3(0.2, 1, -0.25), 0.2),
-            fc  = union_(fa, fb, 0.3);
-    
-    Hit     cc  = toHit(fc, p, vec3(0, 0, 0.25), mat3(1), n, 3u);
-
-    Hit     gr  = ground(p, 0, n, 4u);
-
-    return union_(gr, union_(c, cc, 0.1));
+    return a;
 }
 
 // Raymarching loop
@@ -939,18 +939,6 @@ vec3 phong(vec3 col, Hit h, Light l, vec3 viewDir) {
     return (ambient + diffuse + specular) * l.col * l.str;
 }
 
-Hit get_other_side(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir);
-
-Hit get_transparency(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
-
-    Hit thr = get_other_side(rd, hit, ls, viewDir);
-    Hit next = raymarch(thr.pos - thr.normal * epsilon * 4., thr.dir);
-    if(!next.hit) next = world(next);
-    thr.col = mix(thr.col, next.col, thr.trs);
-    
-    return thr;
-}
-
 //Process all lights
 vec3 lighting(Hit h, Light ls[nLights], vec3 viewDir) {
 
@@ -974,11 +962,12 @@ vec3 shadow(vec3 col, Hit h, Light l) {
 
     Hit shd = raymarch(h.pos + h.normal * epsilon * 2, -vec);
 
-    float d = dot(h.normal, vec);
+    if(!shd.hit) return col;
 
+    float d = dot(h.normal, vec);
     if(d < 0 && shd.hit && (shd.len < length(h.pos - l.vec) || !l.point)) {
         vec3 sc = col*(1+d);
-        col = mix(sc, col, l.amb);
+        col = mix(mix(sc, mix(col, shd.col, shd.trs), l.amb), col, shd.trs);
     }
 
     return col;
@@ -1005,18 +994,6 @@ vec3 basic_shading(Hit hit, Light ls[nLights], vec3 viewDir) {
     return col;
 }
 
-Hit get_reflection(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
-
-    vec3 refDir = reflect(rd, hit.normal);
-    Hit ref     = raymarch(hit.pos + hit.normal * epsilon * 2., refDir);
-    
-    if(ref.hit) ref.col = basic_shading(ref, ls, viewDir);
-    else ref = world(ref);
-
-    return ref;
-
-}
-
 Hit get_other_side(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
 
     Hit thr = reverse_raymarch(hit.pos - hit.normal * epsilon * 4., rd);
@@ -1025,6 +1002,28 @@ Hit get_other_side(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
     return thr;
 }
 
+Hit get_transparency(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
+
+    Hit thr = get_other_side(rd, hit, ls, viewDir);
+    Hit next = raymarch(thr.pos - thr.normal * epsilon * 4., thr.dir);
+    if(!next.hit) next = world(next);
+    thr.col = mix(thr.col, next.col, thr.trs);
+    thr.pos = next.pos - next.normal * epsilon * 4;
+
+    return thr;
+}
+
+Hit get_reflection(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
+
+    vec3 refDir = reflect(rd, hit.normal);
+    Hit ref     = raymarch(hit.pos + hit.normal * epsilon * 2., refDir);
+    
+    if(ref.hit) ref.col = basic_shading(ref, ls, viewDir);
+    else return world(ref);
+
+    return ref;
+
+}
 
 vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
 
@@ -1057,7 +1056,7 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
 
                 if(!ref.hit) break;
 
-                ref = get_reflection(ref.dir, ref, ls, viewDir);
+                ref     = get_reflection(ref.dir, ref, ls, viewDir);
                 fref   *= ref.ref;
 
                 col     = mix(col, ref.col, fref);
@@ -1072,6 +1071,21 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
             Hit thr = get_transparency(rd, hit, ls, viewDir);
 
             col = mix(col, thr.col, hit.trs);
+
+            // Final transparency value
+            float ftrs  = thr.trs;
+
+            // Apply every iteration
+            for(uint i = 1u; i <= imax; ++i) {
+
+                if(!thr.hit) break;
+
+                thr     = get_transparency(thr.dir, thr, ls, viewDir);
+                ftrs   *= thr.trs;
+
+                col     = mix(col, thr.col, ftrs);
+
+            }
 
         } 
 
