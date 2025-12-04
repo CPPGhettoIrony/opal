@@ -1017,7 +1017,9 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
             Hit ref     = raymarch(hit.pos + hit.normal * epsilon * 2., refDir);
 
             // Apply first iteration reflection + shading + line thickness
-
+            
+            vec3 rcol;
+            
             if(ref.hit) rcol = basic_shading(ref, ls, viewDir);
             else rcol = world(ref).col;
 
