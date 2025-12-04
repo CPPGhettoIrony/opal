@@ -231,12 +231,12 @@ Hit cartoon(Hit h, vec3 col) {
 
     h.col = mix(col, col * 1.2, fresnel(h));
     h.lco = h.col *.3;
-    h.ref = 0;
-    h.shn = 64;
-    h.spc = 1;
+    h.ref = 0.2;
+    h.shn = 128;
+    h.spc = 2;
     h.lth = 0;
 
-    h.trs = 0.2;
+    h.trs = 0.3;
 
     //h.normal = BUMP(c_bump, h, 0.002);
 
@@ -258,7 +258,7 @@ Hit floor(Hit h) {
 
     h.col = (d>0.)? vec3(1., 1., 0) : vec3(0.,0.,1.);
     h.lco = h.col *.3;
-    h.ref = 0.3;
+    h.ref = 0.4;
     h.shn = 64;
     h.spc = 1;
     h.lth = 0;
@@ -843,7 +843,7 @@ Hit raymarch(vec3 ro, vec3 rd) {
 
             h = scene(p, normal);
 
-            h.dir = normalize(-rd);
+            h.dir = normalize(rd);
             h.len = t;
             h.hit = true;
 
@@ -894,7 +894,7 @@ Hit reverse_raymarch(vec3 ro, vec3 rd) {
 
             h = neg_scene(p, normal);
 
-            h.dir = normalize(-rd);
+            h.dir = normalize(rd);
             h.len = t;
             h.hit = true;
 
@@ -937,6 +937,18 @@ vec3 phong(vec3 col, Hit h, Light l, vec3 viewDir) {
     vec3 specular = h.spc * vec3(spec); // white highlight
 
     return (ambient + diffuse + specular) * l.col * l.str;
+}
+
+Hit get_other_side(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir);
+
+Hit get_transparency(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
+
+    Hit thr = get_other_side(rd, hit, ls, viewDir);
+    Hit next = raymarch(thr.pos - thr.normal * epsilon * 4., thr.dir);
+    if(!next.hit) next = world(next);
+    thr.col = mix(thr.col, next.col, thr.trs);
+    
+    return thr;
 }
 
 //Process all lights
@@ -993,7 +1005,26 @@ vec3 basic_shading(Hit hit, Light ls[nLights], vec3 viewDir) {
     return col;
 }
 
-//vec3 get_reflection(Hit hit, Light ls[nlights], vec3 viewDir)
+Hit get_reflection(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
+
+    vec3 refDir = reflect(rd, hit.normal);
+    Hit ref     = raymarch(hit.pos + hit.normal * epsilon * 2., refDir);
+    
+    if(ref.hit) ref.col = basic_shading(ref, ls, viewDir);
+    else ref = world(ref);
+
+    return ref;
+
+}
+
+Hit get_other_side(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
+
+    Hit thr = reverse_raymarch(hit.pos - hit.normal * epsilon * 4., rd);
+    thr.col = basic_shading(thr, ls, viewDir);
+
+    return thr;
+}
+
 
 vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
 
@@ -1013,41 +1044,34 @@ vec4 render(vec3 ro, vec3 rd, Light ls[nLights]) {
         if(hit.ref > 0) {
 
             // Calculate reflection on the first iteration
-            vec3 refDir = reflect(rd, hit.normal);
-            Hit ref     = raymarch(hit.pos + hit.normal * epsilon * 2., refDir);
+            Hit ref = get_reflection(rd, hit, ls, viewDir);
 
             // Apply first iteration reflection + shading + line thickness
-            
-            vec3 rcol;
-            
-            if(ref.hit) rcol = basic_shading(ref, ls, viewDir);
-            else rcol = world(ref).col;
-
-            col         = mix(col, rcol, hit.ref);
+            col = mix(col, ref.col, hit.ref);
 
             // Final reflection value
-            float fref  = hit.ref;
+            float fref  = ref.ref;
 
             // Apply every iteration
             for(uint i = 1u; i <= imax; ++i) {
 
                 if(!ref.hit) break;
 
-                refDir  = reflect(refDir, ref.normal);
-                ref     = raymarch(ref.pos + ref.normal * epsilon * 2., refDir);
-
-                if(ref.hit) {
-                    viewDir = normalize(ref.pos - ro);
-                    bool line = abs(dot(refDir, ref.normal)) < ref.lth;
-                    ref.col = line? ref.lco :lighting(ref, ls, viewDir);
-                    ref.col = shadows(ref.col, ref, ls);
-                } else ref = world(ref);
-
+                ref = get_reflection(ref.dir, ref, ls, viewDir);
                 fref   *= ref.ref;
 
-                col     = mix(col, rcol, fref);
+                col     = mix(col, ref.col, fref);
 
             }
+
+        }
+
+        if(hit.trs > 0) {
+
+            //get first iteration of transparency
+            Hit thr = get_transparency(rd, hit, ls, viewDir);
+
+            col = mix(col, thr.col, hit.trs);
 
         } 
 
