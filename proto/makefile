@@ -1,5 +1,5 @@
 CXX = nvcc
-CXXFLAGS =  --relocatable-device-code=true -lraylib -lGL -lGLEW -lcuda -lcudart -lglfw -ldl -lm -lpthread -lrt -lX11
+CXXFLAGS =  --relocatable-device-code=true -lraylib -lGL -lGLEW -lcuda -lcudart -lglfw -ldl -lm -lpthread -lrt -lX11 -diag-suppress 20012
 FORMAT = cu
 
 #CXX = g++

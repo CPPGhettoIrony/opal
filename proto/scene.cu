@@ -34,7 +34,8 @@ Hit scene(vec3 p, vec3 n){
     */
 
     Hit a = ground(p, -0.3, n, 4u);
-    Hit b = sphere(p, vec3(0.), 0.2, n, 2u);
+    Hit b = sphere(p, vec3(-0.15, 0., 0.5), 0.2, n, 2u);
+    Hit c = sphere(p, vec3(0.15, 0., 0.5), 0.2, n, 1u);
 
-    return union_(a, b);
+    return union_(a, union_(b, c, 0.1));
 }

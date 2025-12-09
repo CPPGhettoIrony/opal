@@ -111,6 +111,8 @@ vec3 clampv01(vec3 v) {
 __host__ __device__
 vec3 phong(vec3 col, Hit h, Light l, vec3 viewDir) {
 
+    //return vec3(mix(vec3(0.5), vec3(1), dot(viewDir, h.normal))) * col;
+
     // If the light is a point, the light direction is the difference between the light position and hit position
     vec3 vec = l.point? normalize(h.pos - l.vec) : l.vec;
 
@@ -123,7 +125,7 @@ vec3 phong(vec3 col, Hit h, Light l, vec3 viewDir) {
     float spec = pow(max(dot(viewDir, reflectDir), 0.f), h.shn);
     vec3 specular = h.spc * vec3(spec); // white highlight
 
-    return (ambient + diffuse + specular) * l.col * l.str;
+    return clamp((ambient + diffuse + specular) * l.col * l.str, vec3(.0), vec3(1.));
 }
 
 //Process all lights

@@ -32,12 +32,12 @@ void cartoon(Hit &h, vec3 col) {
 
     h.col = col;
     h.lco = h.col * vec3(0.3);
-    h.ref = 0;
+    h.ref = 0.2;
     h.shn = 128;
     h.spc = 2;
     h.lth = 0;
 
-    h.trs = 0;
+    h.trs = 0.4;
 
     h.normal = BUMP(c_bump, h, 0.002);
 }
@@ -57,13 +57,13 @@ float f_bump(vec2 uv) {
 }
 
 __host__ __device__
-Hit floor(Hit h) {
+void floor(Hit& h) {
 
     float d = f_bump(h.uv);
 
     h.col = (d>0.)? vec3(1., 1., 0) : vec3(0.,0.,1.);
     h.lco = h.col * vec3(0.3);
-    h.ref = 0;
+    h.ref = 0.3;
     h.shn = 64;
     h.spc = 1;
     h.lth = 0;
@@ -71,7 +71,7 @@ Hit floor(Hit h) {
 
     //h.normal = BUMP(f_bump, h, 0.2);
 
-    return h;
+    //return h;
 }
 
 __host__ __device__
