@@ -26,8 +26,8 @@ int main(void)
 
     // Free camera setup
     Camera camera = {0};
-    camera.position = (Vector3){0.0f, 0.0f, -6.0f};
-    camera.target   = (Vector3){0.0f, 0.0f, 0.0f};
+    camera.position = (Vector3){0.0f, 0.1f, -1.5f};
+    camera.target   = (Vector3){0.0f, 0.0f, 1.0f};
     camera.up       = (Vector3){0.0f, 1.0f, 0.0f};
     camera.fovy     = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
@@ -39,7 +39,7 @@ int main(void)
     while (!WindowShouldClose())
     {
         // Update camera with free movement
-        UpdateCamera(&camera, CAMERA_FREE);
+        //UpdateCamera(&camera, CAMERA_FREE);
 
         // Compute Euler rotation (yaw, pitch) from forward vector
         Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));

@@ -805,9 +805,7 @@ Hit scene(vec3 p, vec3 n){
 	return toHit(dst, p, vec3(0), mat3(1), 3u);
     */
 
-    Hit a = test(p, vec3(0, 1, 0), n);
-    a = union_(a, test(p, vec3(-0.5, 1.5, 0), n));
-    a = union_(a, test(p, vec3(-1, 2, 0), n));
+    Hit a = test(p, vec3(0, 0, 0), n);
     //a = union_(a, ground(p, -0.5, n, 4u));
 
     return a;
