@@ -26,7 +26,7 @@ Hit sphere(vec3 p, vec3 pos, float r, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = pos; 
     ret.rfr     = mat3(1.);
-    getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
@@ -44,7 +44,7 @@ Hit ground(vec3 p, float h, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = vec3(.0); 
     ret.rfr     = mat3(1.);
-    getMaterial(ret, n, matID);
+    ret = getMaterial(ret, n, matID);
     return ret;
 }
 
@@ -68,7 +68,7 @@ Hit box(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
@@ -92,7 +92,7 @@ Hit torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
@@ -116,7 +116,7 @@ Hit link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2, vec3 n, uint 
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
@@ -149,7 +149,7 @@ Hit cone(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
@@ -174,7 +174,7 @@ Hit capsule(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
@@ -198,7 +198,7 @@ Hit cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
@@ -233,7 +233,7 @@ Hit octahedron(vec3 p, vec3 pos, mat3 rot, float s, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
@@ -259,7 +259,7 @@ Hit ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID); 
     return ret;
 }
 
@@ -275,7 +275,7 @@ Hit slope(vec3 p, vec3 pos, vec3 normal, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = mat3(1);
-    getMaterial(ret, n, matID);
+    ret = getMaterial(ret, n, matID);
     return ret;
 }
 
@@ -286,7 +286,7 @@ Hit toHit(float d, vec3 p, vec3 rfp, mat3 rfr, vec3 n, uint matID) {
     ret.pos     = p;
     ret.rfp     = rfp;
     ret.rfr     = rfr;
-    getMaterial(ret, n, matID);
+    ret = getMaterial(ret, n, matID);
     return ret;
 }
 
@@ -324,7 +324,7 @@ Hit morph(Hit a, Hit b, float k) {
 
 __host__ __device__
 Hit changeMaterial(Hit a, vec3 n, uint matID) {
-    getMaterial(a, n, matID);
+    a = getMaterial(a, n, matID);
     return a;
 }
 

@@ -96,9 +96,9 @@ int main()
     dim3 grid((WIDTH + BSIZE - 1) / BSIZE, (HEIGHT + BSIZE - 1) / BSIZE);
 
     Camera cam = {0};
-    cam.position = {0.0f, 0.2f, -2.0f};
-    cam.target   = {0.0f, 0.0f,  0.0f};
-    cam.up       = {0.0f, 1.0f,  0.0f};
+    cam.position = {0.0f, 0.f, -2.0f};
+    cam.target   = {0.0f, 0.f,  1.0f};
+    cam.up       = {0.0f, 1.0f, 0.0f};
     cam.fovy     = 45.0f;
     cam.projection = CAMERA_PERSPECTIVE;
 
@@ -111,6 +111,7 @@ int main()
 
         vec3 eye(cam.position.x, cam.position.y, cam.position.z);
         vec3 tgt(cam.target.x, cam.target.y, cam.target.z);
+
         vec3 fw = normalize(tgt - eye);
         vec3 c_rot(asinf(fw.y), atan2f(fw.x, fw.z), 0);
 

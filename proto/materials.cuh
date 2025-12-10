@@ -10,18 +10,20 @@
 /* - - - - - -  MATERIALS - - - - - - */
 
 __host__ __device__
-void world(Hit& h) {
+Hit world(Hit h) {
     h.col = vec3(0.4,0.7,1);
+    return h;
 }
 
 // Default material
 
 __host__ __device__
-void def(Hit& h) {
+Hit def(Hit h) {
     h.col = vec3(1.);
     h.ref = 0;
     h.shn = 64;
     h.spc = 1;
+    return h;
 }
 
 __host__ __device__
@@ -31,7 +33,7 @@ float c_bump(vec2 uv) {
 }
 
 __host__ __device__
-void cartoon(Hit &h, vec3 col) {    
+Hit cartoon(Hit h, vec3 col) {    
 
     h.col = col;
     h.lco = h.col * vec3(0.3);
@@ -43,16 +45,18 @@ void cartoon(Hit &h, vec3 col) {
     h.trs = 0.4;
 
     h.normal = BUMP(c_bump, h, 0.002);
+
+    return h;
 }
 
 __host__ __device__
-void A(Hit& h) {cartoon(h, vec3(1.0, 0.3, 0.));}
+Hit A(Hit h) {return cartoon(h, vec3(1.0, 0.3, 0.));}
 
 __host__ __device__
-void B(Hit& h) {cartoon(h, vec3(0., 1.0, 0.3));}
+Hit B(Hit h) {return cartoon(h, vec3(0., 1.0, 0.3));}
 
 __host__ __device__
-void C(Hit& h) {cartoon(h, vec3(0., 0.3, 1.0));}
+Hit C(Hit h) {return cartoon(h, vec3(0., 0.3, 1.0));}
 
 __host__ __device__
 float f_bump(vec2 uv) {
@@ -60,7 +64,7 @@ float f_bump(vec2 uv) {
 }
 
 __host__ __device__
-void floor(Hit& h) {
+Hit floor(Hit h) {
 
     float d = f_bump(h.uv);
 
@@ -74,11 +78,11 @@ void floor(Hit& h) {
 
     //h.normal = BUMP(f_bump, h, 0.2);
 
-    //return h;
+    return h;
 }
 
 __host__ __device__
-void getMaterial(Hit& h, vec3 norm, uint matID) {
+Hit getMaterial(Hit h, vec3 norm, uint matID) {
 
     h.matID = matID;
 
@@ -96,11 +100,11 @@ void getMaterial(Hit& h, vec3 norm, uint matID) {
     h.uv = averagev2(n, uvX, uvY, uvZ);
 
     switch(matID) {
-        case 1: A(h);      break;
-        case 2: B(h);      break;
-        case 3: C(h);      break;
-        case 4: floor(h);  break;
-        default:def(h);    break;
+        case 1:  return A(h);      
+        case 2:  return B(h);      
+        case 3:  return C(h);      
+        case 4:  return floor(h);  
+        default: return def(h);   
     }
     
 }

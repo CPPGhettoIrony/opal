@@ -208,7 +208,7 @@ Hit get_transparency(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
 
     Hit thr = get_other_side(rd, hit, ls, viewDir);
     Hit next = raymarch(thr.pos - thr.normal * vec3(EPSILON * 4.), thr.dir);
-    if(!next.hit) world(next);
+    if(!next.hit) next = world(next);
     thr.col = mix(thr.col, next.col, thr.trs);
     thr.pos = next.pos - next.normal * vec3(EPSILON * 4);
 
@@ -222,10 +222,7 @@ Hit get_reflection(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
     Hit ref     = raymarch(hit.pos + hit.normal * vec3(EPSILON * 2.), refDir);
     
     if(ref.hit) ref.col = basic_shading(ref, ls, viewDir);
-    else {
-        world(ref);
-        return ref;
-    }
+    else return world(ref);
 
     return ref;
 
@@ -304,7 +301,7 @@ vec4 render(vec3 ro, vec3 rd, Light *ls) {
 
     }
 
-    world(hit);
+    hit = world(hit);
 
     return vec4(hit.col, 1.);
 
