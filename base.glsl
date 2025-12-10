@@ -649,20 +649,20 @@ float smin(float d1, float d2, float k, out float h)
     return mix(d2, d1, h) - k * h * (1.0 - h);
 }
 
-float union_(float a, float b) {
+float join(float a, float b) {
     return (a < b) ? a : b;
 }
 
-float union_(float a, float b, float k) {
+float join(float a, float b, float k) {
     float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
     return mix(b, a, h) - k * h * (1.0 - h);
 }
 
-Hit union_(Hit a, Hit b) {
+Hit join(Hit a, Hit b) {
     return (a.d < b.d) ? a : b;
 }
 
-Hit union_(Hit a, Hit b, float k) {
+Hit join(Hit a, Hit b, float k) {
 
     // 1) choose the winner by raw distance
     Hit r = (a.d < b.d) ? a : b;
@@ -751,12 +751,12 @@ Hit color(Hit a, Hit b, float k, vec3 n) {
 
 float joint(float a, float b, float c, float k) {
     k = (c >= epsilon)? clamp(k - c, k, 0) : k;
-    return union_(union_(a, c), b, k);
+    return join(join(a, c), b, k);
 }
 
 Hit joint(Hit a, Hit b, Hit c, float k) {
     k = (c.d >= epsilon)? clamp(k - c.d, k, 0) : k;
-    return union_(union_(a, c), b, k);
+    return join(join(a, c), b, k);
 }
 
 /*
@@ -778,7 +778,7 @@ Hit joint(Hit a, Hit b, Hit c, float k) {
 Hit test(vec3 p, vec3 pos, vec3 n) {
     Hit     a   = box(p, vec3(0, 0, 0) + pos, mat3(1), vec3(0.2), n, 1u),
             b   = sphere(p, vec3(0, 0.2, 0) + pos, 0.2, n, 2u),
-            c   = union_(a, b, 0.1);
+            c   = join(a, b, 0.1);
     return c;
 }
 
@@ -806,7 +806,7 @@ Hit scene(vec3 p, vec3 n){
     */
 
     Hit a = test(p, vec3(0, 0, 0), n);
-    //a = union_(a, ground(p, -0.5, n, 4u));
+    //a = join(a, ground(p, -0.5, n, 4u));
 
     return a;
 }

@@ -11,7 +11,7 @@
 #include "materials.cuh"
 
 // Raymarching loop
-__host__ __device__
+__device__
 Hit raymarch(vec3 ro, vec3 rd) {
 
     const vec2 e = vec2(EPSILON, 0.0);
@@ -56,7 +56,7 @@ Hit raymarch(vec3 ro, vec3 rd) {
     return h; // background
 }
 
-__host__ __device__
+__device__
 Hit neg_scene(vec3 p, vec3 n) {
     Hit ret = scene(p, n);
     ret.d = -ret.d;
@@ -64,7 +64,7 @@ Hit neg_scene(vec3 p, vec3 n) {
 }
 
 // Raymarching loop within objects for transparency
-__host__ __device__
+__device__
 Hit reverse_raymarch(vec3 ro, vec3 rd) {
 
     const vec2 e = vec2(EPSILON, 0.0);
@@ -91,6 +91,7 @@ Hit reverse_raymarch(vec3 ro, vec3 rd) {
             h6 = neg_scene(p - vec3(e.y, e.y, e.x), vec3(0, 0, 0));
 
             vec3 normal = normalize(vec3(h1.d - h2.d, h3.d - h4.d, h5.d - h6.d));
+            h.un = normal;
 
             h = neg_scene(p, normal);
 
@@ -109,13 +110,13 @@ Hit reverse_raymarch(vec3 ro, vec3 rd) {
     return h; // background
 }
 
-__host__ __device__
+__device__
 vec3 clampv01(vec3 v) {
     return vec3(clamp(v.x, .0f, 1.f), clamp(v.y, .0f, 1.f), clamp(v.z, .0f, 1.f));
 }
 
 // Basic lighting
-__host__ __device__
+__device__
 vec3 phong(vec3 col, Hit h, Light l, vec3 viewDir) {
 
     //return vec3(mix(vec3(0.5), vec3(1), dot(viewDir, h.normal))) * col;
@@ -136,7 +137,7 @@ vec3 phong(vec3 col, Hit h, Light l, vec3 viewDir) {
 }
 
 //Process all lights
-__host__ __device__
+__device__
 vec3 lighting(Hit h, Light *ls, vec3 viewDir) {
 
     vec3 col = vec3(0.0);
@@ -153,7 +154,7 @@ vec3 lighting(Hit h, Light *ls, vec3 viewDir) {
     return col;
 }
 
-__host__ __device__
+__device__
 vec3 shadow(vec3 col, Hit h, Light l) {
 
     vec3 vec = l.point? normalize(h.pos - l.vec) : l.vec;
@@ -172,7 +173,7 @@ vec3 shadow(vec3 col, Hit h, Light l) {
 
 }
 
-__host__ __device__
+__device__
 vec3 shadows(vec3 col, Hit h, Light *ls) {
 
     for(uint i = 0u; i < N_LIGHTS; ++i)
@@ -181,11 +182,11 @@ vec3 shadows(vec3 col, Hit h, Light *ls) {
     return col;
 }
 
-__host__ __device__
-vec3 basic_shading(Hit hit, Light *ls, vec3 viewDir) {
+__device__
+vec3 basic_shading(Hit hit, Light *ls, vec3 viewDir, bool line) {
 
     //Line thickness
-    if(abs(dot(viewDir, hit.normal)) < hit.lth) return hit.lco;
+    if(abs(dot(viewDir, hit.un)) < hit.lth && line) return hit.lco;
 
     vec3 col = hit.col;
     // Add lighting
@@ -194,16 +195,16 @@ vec3 basic_shading(Hit hit, Light *ls, vec3 viewDir) {
     return col;
 }
 
-__host__ __device__
+__device__
 Hit get_other_side(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
 
     Hit thr = reverse_raymarch(hit.pos - hit.normal * vec3(EPSILON * 4.), rd);
-    thr.col = basic_shading(thr, ls, viewDir);
+    thr.col = basic_shading(thr, ls, viewDir, true);
 
     return thr;
 }
 
-__host__ __device__
+__device__
 Hit get_transparency(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
 
     Hit thr = get_other_side(rd, hit, ls, viewDir);
@@ -215,20 +216,20 @@ Hit get_transparency(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
     return thr;
 }
 
-__host__ __device__
+__device__
 Hit get_reflection(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
 
     vec3 refDir = reflect(rd, hit.normal);
     Hit ref     = raymarch(hit.pos + hit.normal * vec3(EPSILON * 2.), refDir);
     
-    if(ref.hit) ref.col = basic_shading(ref, ls, viewDir);
+    if(ref.hit) ref.col = basic_shading(ref, ls, viewDir, false);
     else return world(ref);
 
     return ref;
 
 }
 
-__host__ __device__
+__device__
 vec4 render(vec3 ro, vec3 rd, Light *ls) {
 
     vec3 viewDir = normalize(-rd);
@@ -241,7 +242,7 @@ vec4 render(vec3 ro, vec3 rd, Light *ls) {
         //return vec4(hit.col, 1.);
         //return vec4(vec3(mix(vec3(0.5), vec3(1), dot(viewDir, hit.normal))), 1.) * vec4(hit.col, 1.);
 
-        vec3 col = basic_shading(hit, ls, viewDir);
+        vec3 col = basic_shading(hit, ls, viewDir, true);
 
         if(col == hit.lco) return vec4(col, 1);
 

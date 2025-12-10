@@ -12,7 +12,7 @@ struct Light {
     float   str;    //  Strength
     float   amb;    //  Ambient 
 
-    __host__ __device__
+    __host__
     Light(const vec3& col, bool point, const vec3& vec, float str, float amb)
         : col(col), point(point), vec(vec), str(str), amb(amb) {}
 

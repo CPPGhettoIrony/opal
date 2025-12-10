@@ -13,8 +13,7 @@ using namespace glm;
 /* - - - - - -  PRIMITIVES - - - - - - */
 
 // Empty Hit
-
-__host__ __device__
+__device__
 Hit empty(vec3 p) {
     Hit ret;
     ret.d       = 1.f;
@@ -25,13 +24,11 @@ Hit empty(vec3 p) {
 }
 
 // Sphere
-
-__host__ __device__
+__device__
 float sphere(vec3 p, vec3 pos, float r) {
     return length(p - pos) - r;
 }
-
-__host__ __device__
+__device__
 Hit sphere(vec3 p, vec3 pos, float r, vec3 n, uint matID) {
     Hit ret;
     ret.d       = sphere(p , pos, r);
@@ -43,13 +40,11 @@ Hit sphere(vec3 p, vec3 pos, float r, vec3 n, uint matID) {
 }
 
 // Ground
-
-__host__ __device__
+__device__
 float ground(vec3 p, float h) {
     return p.y - h;
 }
-
-__host__ __device__
+__device__
 Hit ground(vec3 p, float h, vec3 n, uint matID) {
     Hit ret;
     ret.d       = p.y - h;
@@ -61,19 +56,16 @@ Hit ground(vec3 p, float h, vec3 n, uint matID) {
 }
 
 // Box
-
-__host__ __device__
+__device__
 float box( vec3 p, vec3 b ) {
     vec3 q = abs(p) - b;
     return length(max(q,vec3(0.0))) + min(max(q.x,max(q.y,q.z)),0.0f);
 }
-
-__host__ __device__
+__device__
 float box(vec3 p, vec3 pos, mat3 rot, vec3 b ) {
     return box(applyTransform(p, pos, rot), b);
 }
-
-__host__ __device__
+__device__
 Hit box(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
     Hit ret;
     ret.d       = box(p, pos, rot, b);
@@ -85,19 +77,16 @@ Hit box(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
 }
 
 // Torus
-
-__host__ __device__
+__device__
 float torus( vec3 p, float r1, float r2 ) {
   vec2 q = vec2(length(vec2(p.x, p.z))-r1,p.y);
   return length(q)-r2;
 }
-
-__host__ __device__
+__device__
 float torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2) {
     return torus(applyTransform(p, pos, rot), r1, r2);
 }
-
-__host__ __device__
+__device__
 Hit torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2, vec3 n, uint matID) {
     Hit ret;
     ret.d       = torus(p, pos, rot, r1, r2);
@@ -109,19 +98,16 @@ Hit torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2, vec3 n, uint matID) {
 }
 
 // Link
-
-__host__ __device__
+__device__
 float link( vec3 p, float le, float r1, float r2 ) {
     vec3 q = vec3( p.x, max(abs(p.y)-le,0.0f), p.z );
     return length(vec2(length(vec2(q.x, q.y))-r1,q.z)) - r2;
 }
-
-__host__ __device__
+__device__
 float link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2) {
     return link(applyTransform(p, pos, rot), le, r1, r2);
 }
-
-__host__ __device__
+__device__
 Hit link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2, vec3 n, uint matID) {
     Hit ret;
     ret.d       = link(p, pos, rot, le, r1, r2);
@@ -133,8 +119,7 @@ Hit link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2, vec3 n, uint 
 }
 
 // Cone
-
-__host__ __device__
+__device__
 float cone(vec3 p, vec2 q) {
     // c is the sin/cos of the angle, h is height
     // Alternatively pass q instead of (c,h),
@@ -148,13 +133,11 @@ float cone(vec3 p, vec2 q) {
     float s = max( k*(w.x*q.y-w.y*q.x),k*(w.y-q.y)  );
     return sqrt(d)*sign(s);
 }
-
-__host__ __device__
+__device__
 float cone(vec3 p, vec3 pos, mat3 rot, float r, float h) {
     return cone(applyTransform(p, pos, rot), vec2(r, -h));
 }
-
-__host__ __device__
+__device__
 Hit cone(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
     Hit ret;
     ret.d       = cone(p, pos, rot, r, h);
@@ -166,19 +149,16 @@ Hit cone(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
 }
 
 // Capsule 
-
-__host__ __device__
+__device__
 float capsule( vec3 p, float r, float h ) {
     p.y -= clamp( p.y, 0.0f, h );
     return length( p ) - r;
 }
-
-__host__ __device__
+__device__
 float capsule(vec3 p, vec3 pos, mat3 rot, float r, float h) {
     return capsule(applyTransform(p, pos, rot), r, h);
 }
-
-__host__ __device__
+__device__
 Hit capsule(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
     Hit ret;
     ret.d       = capsule(p, pos, rot, r, h);
@@ -191,19 +171,16 @@ Hit capsule(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
 }
 
 // Cylinder
-
-__host__ __device__
+__device__
 float cylinder( vec3 p, float r, float h ) {
     vec2 d = abs(vec2(length(vec2(p.x, p.z)),p.y)) - vec2(r,h);
     return min(max(d.x,d.y),0.0f) + length(max(d,0.0f));
 }
-
-__host__ __device__
+__device__
 float cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h) {
     return cylinder(applyTransform(p, pos, rot), r, h);
 }
-
-__host__ __device__
+__device__
 Hit cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
     Hit ret;
     ret.d       = cylinder(p, pos, rot, r, h);
@@ -215,8 +192,7 @@ Hit cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
 }
 
 // Octahedron
-
-__host__ __device__
+__device__
 float octahedron( vec3 p, float s ) {
 
   p = abs(p);
@@ -231,13 +207,11 @@ float octahedron( vec3 p, float s ) {
   return length(vec3(q.x,q.y-s+k,q.z-k)); 
 
 }
-
-__host__ __device__
+__device__
 float octahedron(vec3 p, vec3 pos, mat3 rot, float s) {
     return octahedron(applyTransform(p, pos, rot), s);
 }
-
-__host__ __device__
+__device__
 Hit octahedron(vec3 p, vec3 pos, mat3 rot, float s, vec3 n, uint matID) {
     Hit ret;
     ret.d       = octahedron(p, pos, rot, s);
@@ -250,20 +224,17 @@ Hit octahedron(vec3 p, vec3 pos, mat3 rot, float s, vec3 n, uint matID) {
 }
 
 // Ellipsoid
-
-__host__ __device__
+__device__
 float ellipsoid( vec3 p, vec3 r ) {
   float k0 = length(p/r);
   float k1 = length(p/(r*r));
   return k0*(k0-1.0)/k1;
 }
-
-__host__ __device__
+__device__
 float ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b ) {
     return ellipsoid(applyTransform(p, pos, rot), b);
 }
-
-__host__ __device__
+__device__
 Hit ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
     Hit ret;
     ret.d       = ellipsoid(p, pos, rot, b);
@@ -274,13 +245,11 @@ Hit ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
     ret = getMaterial(ret, n, matID); 
     return ret;
 }
-
-__host__ __device__
+__device__
 float slope(vec3 p, vec3 pos, vec3 normal) {
     return dot((p - pos), normal);
 }
-
-__host__ __device__
+__device__
 Hit slope(vec3 p, vec3 pos, vec3 normal, vec3 n, uint matID) {
     Hit ret;
     ret.d       = slope(p, pos, normal);
@@ -290,8 +259,7 @@ Hit slope(vec3 p, vec3 pos, vec3 normal, vec3 n, uint matID) {
     ret = getMaterial(ret, n, matID);
     return ret;
 }
-
-__host__ __device__
+__device__
 Hit toHit(float d, vec3 p, vec3 rfp, mat3 rfr, vec3 n, uint matID) {
     Hit ret;
     ret.d       = d;
@@ -303,8 +271,7 @@ Hit toHit(float d, vec3 p, vec3 rfp, mat3 rfr, vec3 n, uint matID) {
 }
 
 // CSG Operations
-
-__host__ __device__
+__device__
 Hit blendMaterials(Hit r, Hit a, Hit b, float hBlend) {
 
     r.col       = mix(b.col, a.col, hBlend);
@@ -323,8 +290,7 @@ Hit blendMaterials(Hit r, Hit a, Hit b, float hBlend) {
     return r;     
 
 }
-
-__host__ __device__
+__device__
 Hit morph(Hit a, Hit b, float k) {
     Hit r;
 
@@ -333,39 +299,34 @@ Hit morph(Hit a, Hit b, float k) {
 
     return r;
 }
-
-__host__ __device__
+__device__
 Hit changeMaterial(Hit a, vec3 n, uint matID) {
     a = getMaterial(a, n, matID);
     return a;
 }
 
 // polynomial smooth‑min helper
-__host__ __device__
+__device__
 float smin(float d1, float d2, float k, float& h)
 {
     h = clamp(0.5 + 0.5 * (d2 - d1) / k, 0.0, 1.0);
     return mix(d2, d1, h) - k * h * (1.0 - h);
 }
-
-__host__ __device__
-float union_(float a, float b) {
+__device__
+float join(float a, float b) {
     return (a < b) ? a : b;
 }
-
-__host__ __device__
-float union_(float a, float b, float k) {
+__device__
+float join(float a, float b, float k) {
     float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
     return mix(b, a, h) - k * h * (1.0 - h);
 }
-
-__host__ __device__
-Hit union_(Hit a, Hit b) {
+__device__
+Hit join(Hit a, Hit b) {
     return (a.d < b.d) ? a : b;
 }
-
-__host__ __device__
-Hit union_(Hit a, Hit b, float k) {
+__device__
+Hit join(Hit a, Hit b, float k) {
 
     // 1) choose the winner by raw distance
     Hit r = (a.d < b.d) ? a : b;
@@ -379,32 +340,27 @@ Hit union_(Hit a, Hit b, float k) {
     // r.hit, r.pos, r.len remain intact, so the marcher keeps working
     return r;
 }
-
-__host__ __device__
+__device__
 float smax(float d1, float d2, float k, float &h) {
     h = clamp(0.5 - 0.5 * (d2 - d1) / k, 0.0, 1.0);
     return mix(d2, d1, h) + k * h * (1.0 - h);
 }
-
-__host__ __device__
+__device__
 float subtract(float a, float b) {
     return (a > -b) ? a : b;
 }
-
-__host__ __device__
+__device__
 float subtract(float a, float b, float k) {
     float h = clamp(0.5 - 0.5 * (-b - a) / k, 0.0, 1.0);
     return mix(-b, a, h) + k * h * (1.0 - h);
 }
-
-__host__ __device__
+__device__
 Hit subtract(Hit a, Hit b) {
     Hit r = (a.d > -b.d) ? a : b;
     r.d = max(a.d, -b.d);
     return r;
 }
-
-__host__ __device__
+__device__
 Hit subtract(Hit a, Hit b, float k) {
 
     Hit r = (a.d > -b.d) ? a : b; // Choose the winner by raw distance for initial guess
@@ -417,24 +373,20 @@ Hit subtract(Hit a, Hit b, float k) {
 
     return r;
 }
-
-__host__ __device__
+__device__
 float intersect(float a, float b) {
     return (a > b) ? a : b;
 }
-
-__host__ __device__
+__device__
 float intersect(float a, float b, float k) {
     float h = clamp(0.5 - 0.5 * (b - a) / k, 0.0, 1.0);
     return mix(b, a, h) + k * h * (1.0 - h);
 }
-
-__host__ __device__
+__device__
 Hit intersect(Hit a, Hit b) {
     return (a.d > b.d) ? a : b;
 }
-
-__host__ __device__
+__device__
 Hit intersect(Hit a, Hit b, float k) {
     
     Hit r = (a.d > b.d) ? a : b; // Choose the winner by raw distance for initial guess
@@ -447,8 +399,7 @@ Hit intersect(Hit a, Hit b, float k) {
 
     return r;
 }
-
-__host__ __device__
+__device__
 Hit color(Hit a, Hit b, float k, vec3 n) {
 
     Hit ab      = changeMaterial(a, n, b.matID);
@@ -461,17 +412,15 @@ Hit color(Hit a, Hit b, float k, vec3 n) {
 
     return morph(ab, a, d);
 }
-
-__host__ __device__
+__device__
 float joint(float a, float b, float c, float k) {
     k = (c >= EPSILON)? clamp(k - c, k, .0f) : k;
-    return union_(union_(a, c), b, k);
+    return join(join(a, c), b, k);
 }
-
-__host__ __device__
+__device__
 Hit joint(Hit a, Hit b, Hit c, float k) {
     k = (c.d >= EPSILON)? clamp(k - c.d, k, .0f) : k;
-    return union_(union_(a, c), b, k);
+    return join(join(a, c), b, k);
 }
 
 

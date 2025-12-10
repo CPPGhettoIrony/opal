@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
-__host__ __device__
+__device__
 mat3 rotationFromEuler(vec3 euler) {
     float cx = cos(euler.x), sx = sin(euler.x);
     float cy = cos(euler.y), sy = sin(euler.y);
@@ -32,7 +32,7 @@ mat3 rotationFromEuler(vec3 euler) {
 }
 
 // We are applying the transform to the space, not the primitive, so we must apply the inverse transform
-__host__ __device__
+__device__
 vec3 applyTransform(vec3 p, vec3 pos, mat3 rot) {
     return transpose(rot) * (p - pos);
 }

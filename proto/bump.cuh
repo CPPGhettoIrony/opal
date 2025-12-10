@@ -6,7 +6,7 @@ using namespace glm;
 
 #include "consts.cuh"
 
-__host__ __device__
+__device__
 uint hash(uint x, uint seed) {
     const uint m = 0x5bd1e995U;
     uint hash = seed;
@@ -20,7 +20,7 @@ uint hash(uint x, uint seed) {
     return hash;    
 }
 
-__host__ __device__
+__device__
 uint hash(uvec2 x, uint seed){
     const uint m = 0x5bd1e995U;
     uint hash = seed;
@@ -45,7 +45,7 @@ uint hash(uvec2 x, uint seed){
     return hash;
 }
 
-__host__ __device__
+__device__
 vec2 gradientDirection(uint hash) {
     switch (int(hash) & 3) { // look at the last two bits to pick a gradient direction
         case 0:
@@ -60,18 +60,18 @@ vec2 gradientDirection(uint hash) {
     return vec2(1.0, 1.0);
 }
 
-__host__ __device__
+__device__
 float interpolate(float value1, float value2, float value3, float value4, vec2 t) {
     return mix(mix(value1, value2, t.x), mix(value3, value4, t.x), t.y);
 }
 
-__host__ __device__
+__device__
 vec2 fade(vec2 t) {
     // 6t^5 - 15t^4 + 10t^3
 	return t * t * t * (t * (t * vec2(6.0) - vec2(15.0)) + vec2(10.0));
 }
 
-__host__ __device__
+__device__
 float perlin(vec2 position, uint seed) {
     vec2 floorPosition = floor(position);
     vec2 fractPosition = position - floorPosition;
@@ -83,7 +83,7 @@ float perlin(vec2 position, uint seed) {
     return interpolate(value1, value2, value3, value4, fade(fractPosition));
 }
 
-__host__ __device__
+__device__
 float perlin(vec2 position, int frequency, int octaveCount, float persistence, float lacunarity, uint seed) {
     float value = 0.0;
     float amplitude = 1.0;
@@ -98,7 +98,7 @@ float perlin(vec2 position, int frequency, int octaveCount, float persistence, f
     return value;
 }
 
-__host__ __device__
+__device__
 float voronoi(vec2 uv, float randomness, uint seed) {
     vec2 cell = floor(uv);
     vec2 fract = uv - cell;
@@ -127,7 +127,7 @@ float voronoi(vec2 uv, float randomness, uint seed) {
     return minDist;
 }
 
-__host__ __device__
+__device__
 vec3 bumpNormal(vec2 uv, vec3 normal, vec3 h, float bumpStrength) {
 
     // Compute gradient (partial derivatives)
@@ -147,7 +147,7 @@ vec3 bumpNormal(vec2 uv, vec3 normal, vec3 h, float bumpStrength) {
     return normalize(bumped);
 }
 
-__host__ __device__
+__device__
 float map_A(float i, float min0, float max0) {
     return (clamp(i, min0, max0) - min0) / (max0 - min0);  
 }

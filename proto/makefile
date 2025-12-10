@@ -16,7 +16,7 @@ $(EXE): $(OBJ)
 	$(CXX) $(OBJ) $(LDFLAGS) -o $@
 
 run: $(EXE)
-	prime-run ./$(EXE)
+	./$(EXE)
 
 clean:
 	rm -f $(OBJ) $(EXE)

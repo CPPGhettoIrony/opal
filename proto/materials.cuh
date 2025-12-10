@@ -9,7 +9,7 @@
 
 /* - - - - - -  MATERIALS - - - - - - */
 
-__host__ __device__
+__device__
 Hit world(Hit h) {
     h.col = vec3(0.4,0.7,1);
     return h;
@@ -17,7 +17,7 @@ Hit world(Hit h) {
 
 // Default material
 
-__host__ __device__
+__device__
 Hit def(Hit h) {
     h.col = vec3(1.);
     h.ref = 0;
@@ -26,13 +26,13 @@ Hit def(Hit h) {
     return h;
 }
 
-__host__ __device__
+__device__
 float c_bump(vec2 uv) {
     uv *= 30;
     return 1-map_A(voronoi(uv, 1., 0u), 0.3, 0.4);
 }
 
-__host__ __device__
+__device__
 Hit cartoon(Hit h, vec3 col) {    
 
     h.col = col;
@@ -40,30 +40,30 @@ Hit cartoon(Hit h, vec3 col) {
     h.ref = 0.2;
     h.shn = 128;
     h.spc = 2;
-    h.lth = 0;
+    h.lth = 0.2;
 
-    h.trs = 0;
+    h.trs = 0.2;
 
     h.normal = BUMP(c_bump, h, 0.002);
 
     return h;
 }
 
-__host__ __device__
+__device__
 Hit A(Hit h) {return cartoon(h, vec3(1.0, 0.3, 0.));}
 
-__host__ __device__
+__device__
 Hit B(Hit h) {return cartoon(h, vec3(0., 1.0, 0.3));}
 
-__host__ __device__
+__device__
 Hit C(Hit h) {return cartoon(h, vec3(0., 0.3, 1.0));}
 
-__host__ __device__
+__device__
 float f_bump(vec2 uv) {
     return map_A(1 - distance(uv, vec2(0.5)), 0.5, 0.6);
 }
 
-__host__ __device__
+__device__
 Hit floor(Hit h) {
 
     float d = f_bump(h.uv);
@@ -81,7 +81,7 @@ Hit floor(Hit h) {
     return h;
 }
 
-__host__ __device__
+__device__
 Hit getMaterial(Hit h, vec3 norm, uint matID) {
 
     h.matID = matID;
@@ -91,6 +91,7 @@ Hit getMaterial(Hit h, vec3 norm, uint matID) {
     vec3 n = pow(abs(norm), vec3(8.0));
     n /= max(dot(norm, vec3(1.0)), EPSILON);
 
+    h.un = norm;
     h.normal = norm;
 
     vec2 uvX(surfacePosition.y, surfacePosition.z);

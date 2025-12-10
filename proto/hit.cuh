@@ -18,6 +18,8 @@ struct Hit {
     mat3    rfr;        // object reference rotation    for mapping
 
     vec3    normal;     // Normal of the hit surface
+    vec3    un;         // Unshaded normal
+    
     vec2    uv;         // UV coordinates
 
     uint    matID;      // Used for material operators;
