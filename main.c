@@ -39,7 +39,7 @@ int main(void)
     while (!WindowShouldClose())
     {
         // Update camera with free movement
-        //UpdateCamera(&camera, CAMERA_FREE);
+        UpdateCamera(&camera, CAMERA_FREE);
 
         // Compute Euler rotation (yaw, pitch) from forward vector
         Vector3 forward = Vector3Normalize(Vector3Subtract(camera.target, camera.position));
