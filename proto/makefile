@@ -17,7 +17,7 @@ $(EXE): $(OBJ)
 	$(CXX) $(CXXFLAGS) $^ -o $@ 
 
 run: $(EXE)
-	./$(EXE)
+	prime-run ./$(EXE)
 
 clean:
 	rm -f $(OBJ) $(EXE)

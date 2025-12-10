@@ -1,133 +1,148 @@
 #include <GL/glew.h>
 #include <raylib.h>
-#include <rlgl.h>
 #include <cuda_runtime.h>
-#include <math.h>
+#include <cuda_gl_interop.h>
+#include <cstdio>
 
-#include "render.cuh"
+#include "render.cuh" 
 
 #define BSIZE 16
+#define WIDTH 512
+#define HEIGHT 512
 
+// Macro para chequear errores de CUDA (vital para debuggear caídas de FPS)
+#define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
+void check_cuda(cudaError_t result, char const *const func, const char *const file, int const line) {
+    if (result) {
+        fprintf(stderr, "CUDA error at %s:%d code=%d(%s) \"%s\" \n",
+                file, line, static_cast<unsigned int>(result), cudaGetErrorName(result), func);
+        exit(EXIT_FAILURE);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Kernel Básico (Escribe en un buffer plano, muy estable)
+// -----------------------------------------------------------------------------
 __global__
-void renderPixel(int width, int height, vec3 c_pos, vec3 c_rot, Light *ls, uchar4* pixels)
+void renderKernel(uchar4* buffer, int width, int height,
+                  vec3 c_pos, vec3 c_rot, Light* lights)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
-
     if (x >= width || y >= height) return;
 
-    vec2 uv(float(x) / float(width), 1 - float(y) / float(height));
-    vec2 resolution(float(width) / float(height), 1.f);
+    // UVs
+    float fx = (float)x / float(width);
+    float fy = 1.0f - (float)y / float(height); 
+    vec2 uv(fx, fy);
+    vec2 resolution(float(width) / float(height), 1.0f);
+    vec2 normCoord = (vec2(2.0f) * uv - vec2(1.0f)) * resolution;
 
-    vec2 normCoord =
-        (vec2(2.0f) * uv - vec2(1.0f)) * resolution;
-
+    // Ray
     vec3 ro = c_pos;
-    vec3 rd = rotationFromEuler(c_rot)
-              * normalize(vec3(normCoord * FOV, 1.0));
+    vec3 rd = rotationFromEuler(c_rot) * normalize(vec3(normCoord * FOV, 1.0));
 
-    vec4 final = render(ro, rd, ls);
+    // Render
+    vec4 col = render(ro, rd, lights);
 
+    // Escribir en buffer lineal
     int idx = y * width + x;
-    pixels[idx].x = (unsigned char)(final.x * 255);
-    pixels[idx].y = (unsigned char)(final.y * 255);
-    pixels[idx].z = (unsigned char)(final.z * 255);
-    pixels[idx].w = (unsigned char)(final.w * 255);
+    buffer[idx] = make_uchar4(
+        (unsigned char)(col.x * 255.0f),
+        (unsigned char)(col.y * 255.0f),
+        (unsigned char)(col.z * 255.0f),
+        (unsigned char)(col.w * 255.0f)
+    );
 }
 
-
-int main(void)
+int main()
 {
-    const int screenWidth  = 512;
-    const int screenHeight = 512;
+    // --- Init ---
+    SetConfigFlags(FLAG_VSYNC_HINT); // VSync ayuda a no saturar la cola
+    InitWindow(WIDTH, HEIGHT, "CUDA Stable Raymarcher");
+    SetTargetFPS(60); // Limitar FPS es clave para no sobrecalentar/saturar
+    glewInit();
 
-    InitWindow(screenWidth, screenHeight, "CUDA Raymarch Test");
-    SetTargetFPS(60);
-
-    glewExperimental = true;
-    int ok = glewInit();
-
+    // --- OpenGL Texture ---
     Texture texture;
-
-    texture.width = screenWidth;
-    texture.height = screenHeight;
-    size_t bufferSize = screenHeight * screenWidth * sizeof(uchar4);
-    
-    unsigned char *cudaBuffer = nullptr;
-    uchar4 *gpuBuffer = nullptr;
-
-    cudaMalloc(&gpuBuffer, bufferSize);
-    cudaBuffer = new unsigned char[bufferSize];
-
     glGenTextures(1, &texture.id);
     glBindTexture(GL_TEXTURE_2D, texture.id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    texture.width = WIDTH;
+    texture.height = HEIGHT;
     texture.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
     texture.mipmaps = 1;
 
-    // Camera
-    Camera camera = {0};
-    camera.position = {0.0f, 0.1f, -1.5f};
-    camera.target   = {0.0f, 0.0f,  1.0f};
-    camera.up       = {0.0f, 1.0f,  0.0f};
-    camera.fovy     = 45.0f;
-    camera.projection = CAMERA_PERSPECTIVE;
+    // --- Registrar para escritura estándar ---
+    cudaGraphicsResource* cudaTexResource;
+    checkCudaErrors(cudaGraphicsGLRegisterImage(&cudaTexResource, texture.id, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard));
 
-    // Lights
-    Light hLight(
-        vec3(1.0, 1.0, 1.0),
-        false,
-        normalize(vec3(0.75, -1, 0.3)),
-        0.9f,
-        0.6f
-    );
+    // --- Allocations (SOLO UNA VEZ) ---
+    Light hLight(vec3(1.0, 1.0, 1.0), false, normalize(vec3(0.75, -1.0, 0.3)), 0.9f, 0.6f);
+    Light* dLights;
+    checkCudaErrors(cudaMalloc(&dLights, sizeof(Light)));
+    checkCudaErrors(cudaMemcpy(dLights, &hLight, sizeof(Light), cudaMemcpyHostToDevice));
 
-    // GPU allocate light
-    Light* dLight;
-    cudaMalloc(&dLight, sizeof(Light));
-    cudaMemcpy(dLight, &hLight, sizeof(Light), cudaMemcpyHostToDevice);
+    // ** AQUÍ ESTA LA CLAVE **
+    // Reservamos el buffer de píxeles UNA VEZ. No en el bucle.
+    uchar4* d_pixelBuffer;
+    checkCudaErrors(cudaMalloc(&d_pixelBuffer, WIDTH * HEIGHT * sizeof(uchar4)));
 
-    // Block + grid
     dim3 block(BSIZE, BSIZE);
-    dim3 grid(
-        (screenWidth  + BSIZE - 1) / BSIZE,
-        (screenHeight + BSIZE - 1) / BSIZE
-    );
+    dim3 grid((WIDTH + BSIZE - 1) / BSIZE, (HEIGHT + BSIZE - 1) / BSIZE);
 
+    Camera cam = {0};
+    cam.position = {0.0f, 0.2f, -2.0f};
+    cam.target   = {0.0f, 0.0f,  0.0f};
+    cam.up       = {0.0f, 1.0f,  0.0f};
+    cam.fovy     = 45.0f;
+    cam.projection = CAMERA_PERSPECTIVE;
+
+    // -------------------------------------------------------------------------
+    // BUCLE
+    // -------------------------------------------------------------------------
     while (!WindowShouldClose())
     {
+        UpdateCamera(&cam, CAMERA_FREE);
 
-        // Update camera
-        UpdateCamera(&camera, CAMERA_FREE);
-
-        // Compute rotation
-        vec3 eye(camera.position.x, camera.position.y, camera.position.z);
-        vec3 tgt(camera.target.x, camera.target.y, camera.target.z);
+        vec3 eye(cam.position.x, cam.position.y, cam.position.z);
+        vec3 tgt(cam.target.x, cam.target.y, cam.target.z);
         vec3 fw = normalize(tgt - eye);
-
         vec3 c_rot(asinf(fw.y), atan2f(fw.x, fw.z), 0);
 
-        // Launch CUDA kernel
-        renderPixel<<<grid, block>>>(
-            screenWidth, screenHeight,
-            eye, c_rot,
-            dLight,
-            gpuBuffer
-        );
-        
-        cudaDeviceSynchronize();
+        // 1. Ejecutar Kernel sobre el buffer persistente (d_pixelBuffer)
+        // Esto es pura memoria de GPU, rapidísimo.
+        renderKernel<<<grid, block>>>(d_pixelBuffer, WIDTH, HEIGHT, eye, c_rot, dLights);
 
-        cudaMemcpy(cudaBuffer, gpuBuffer, bufferSize, cudaMemcpyDeviceToHost);
+        // Chequeo de errores asíncrono
+        checkCudaErrors(cudaGetLastError());
 
-        glBindTexture(GL_TEXTURE_2D, texture.id);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, cudaBuffer);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        // 2. Map Texture
+        checkCudaErrors(cudaGraphicsMapResources(1, &cudaTexResource));
+        cudaArray_t textureArray;
+        checkCudaErrors(cudaGraphicsSubResourceGetMappedArray(&textureArray, cudaTexResource, 0, 0));
 
-        // Draw to screen
+        // 3. Copia Device -> Array (Muy rápida, dentro de VRAM)
+        checkCudaErrors(cudaMemcpy2DToArray(
+            textureArray, 0, 0,
+            d_pixelBuffer, WIDTH * sizeof(uchar4), 
+            WIDTH * sizeof(uchar4), HEIGHT, 
+            cudaMemcpyDeviceToDevice
+        ));
+
+        // 4. Unmap
+        checkCudaErrors(cudaGraphicsUnmapResources(1, &cudaTexResource));
+
+        // 5. SINCRONIZACIÓN (LA CURA PARA EL LAG PROGRESIVO)
+        // Esto obliga a la CPU a esperar a que la GPU termine antes de intentar dibujar el frame.
+        // Previene que se acumulen 1000 frames en la cola.
+        checkCudaErrors(cudaDeviceSynchronize());
+
+        // --- Draw ---
         BeginDrawing();
             ClearBackground(BLACK);
             DrawTexture(texture, 0, 0, WHITE);
@@ -135,13 +150,12 @@ int main(void)
         EndDrawing();
     }
 
-    // Cleanup
-
-    cudaFree(gpuBuffer);
-    delete[] cudaBuffer;
+    // --- Cleanup ---
+    checkCudaErrors(cudaFree(d_pixelBuffer)); // Liberamos el buffer al final
+    checkCudaErrors(cudaFree(dLights));
+    checkCudaErrors(cudaGraphicsUnregisterResource(cudaTexResource));
     glDeleteTextures(1, &texture.id);
-    cudaFree(dLight);
-
     CloseWindow();
+
     return 0;
 }
