@@ -1,10 +1,9 @@
 CXX = nvcc
-CXXFLAGS =  --relocatable-device-code=true -lraylib -lGL -lGLEW -lcuda -lcudart -lglfw -ldl -lm -lpthread -lrt -lX11 -diag-suppress 20012
 FORMAT = cu
 
-#CXX = g++
-#CXXFLAGS = -lraylib -lGL -lGLEW -lglfw -ldl -lm -lglm -lpthread -lrt -lX11
-#FORMAT = cpp
+CXXFLAGS = -O3 -std=c++17 -arch=sm_75 -lineinfo -diag-suppress 20012
+
+LDFLAGS = -lGL -lGLEW -lglfw -ldl -lm -lpthread -lrt -lX11 -lcudart -lraylib
 
 SRC = $(wildcard *.$(FORMAT))
 OBJ = $(SRC:.$(FORMAT)=.o)
@@ -14,7 +13,7 @@ EXE = raymarcher
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 $(EXE): $(OBJ)
-	$(CXX) $(CXXFLAGS) $^ -o $@ 
+	$(CXX) $(OBJ) $(LDFLAGS) -o $@
 
 run: $(EXE)
 	prime-run ./$(EXE)
