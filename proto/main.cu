@@ -7,8 +7,14 @@
 #include "render.cuh" 
 
 #define BSIZE 16
-#define WIDTH 512
-#define HEIGHT 512
+
+#ifndef WIDTH
+    #define WIDTH 512
+#endif
+
+#ifndef HEIGHT
+    #define HEIGHT 512
+#endif
 
 // Macro para chequear errores de CUDA (vital para debuggear caídas de FPS)
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
@@ -63,8 +69,6 @@ int main()
         setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 1);
     #endif
 
-    vec2 res(float(WIDTH), float(HEIGHT));
-
     // --- Init ---
     SetConfigFlags(FLAG_VSYNC_HINT); // VSync ayuda a no saturar la cola
     InitWindow(WIDTH, HEIGHT, "CUDA Stable Raymarcher");
@@ -106,7 +110,7 @@ int main()
     vec3 eye(.0, .0, -1.5);
     vec3 tgt(.0);
 
-    vec2 mp(.0), yp(.0);
+    vec2 yp(.0);
 
     while (!WindowShouldClose())
     {

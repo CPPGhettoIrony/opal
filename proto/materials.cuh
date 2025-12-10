@@ -40,7 +40,7 @@ Hit cartoon(Hit h, vec3 col) {
     h.ref = 0.2;
     h.shn = 128;
     h.spc = 2;
-    h.lth = 0.2;
+    h.lth = 0.1;
 
     h.trs = 0.2;
 
