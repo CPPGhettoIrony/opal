@@ -995,18 +995,42 @@ vec3 basic_shading(Hit hit, Light ls[nLights], vec3 viewDir) {
 Hit get_other_side(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
 
     Hit thr = reverse_raymarch(hit.pos - hit.normal * epsilon * 4., rd);
-    thr.col = basic_shading(thr, ls, viewDir);
+    
+    // Solo calculamos luz si realmente golpeamos la cara interna
+    if(thr.hit)
+        thr.col = basic_shading(thr, ls, viewDir);
+    else
+        thr.col = hit.col; 
 
     return thr;
 }
 
 Hit get_transparency(vec3 rd, Hit hit, Light ls[nLights], vec3 viewDir) {
 
+    // 1. Obtener la cara trasera
     Hit thr = get_other_side(rd, hit, ls, viewDir);
+
+    // SAFETY CHECK PARA NVIDIA:
+    // Si el rayo inverso falló (por ejemplo, geometría muy fina o error de float),
+    // abortamos. Usar thr.normal aquí si !thr.hit causaría NaNs (pantalla negra).
+    if(!thr.hit) return thr;
+
+    // 2. Calcular qué hay DETRÁS del objeto transparente
     Hit next = raymarch(thr.pos - thr.normal * epsilon * 4., thr.dir);
+    
     if(!next.hit) next = world(next);
+    
+    // Mezclar colores
     thr.col = mix(thr.col, next.col, thr.trs);
-    thr.pos = next.pos - next.normal * epsilon * 4;
+    
+    // 3. ACTUALIZAR EL ESTADO PARA EL BUCLE
+    // Debemos mover la posición para la siguiente iteración
+    thr.pos = next.pos - next.normal * epsilon * 4.;
+    
+    // IMPORTANTE: Debemos pasar el estado de hit del objeto SIGUIENTE.
+    // Si next no golpeó nada (es cielo), thr.hit debe ser false para
+    // que el bucle en render() se detenga.
+    thr.hit = next.hit; 
 
     return thr;
 }

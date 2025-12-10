@@ -58,6 +58,11 @@ void renderKernel(uchar4* buffer, int width, int height,
 int main()
 {
 
+    #ifndef NVIDIA_DESKTOP
+        setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 1);
+        setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 1);
+    #endif
+
     vec2 res(float(WIDTH), float(HEIGHT));
 
     // --- Init ---
