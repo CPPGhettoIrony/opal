@@ -1,8 +1,6 @@
 #ifndef _HIT_CUH
 #define _HIT_CUH
 
-#include "camera.cuh"
-
 #include <glm/glm.hpp>
 using namespace glm;
 

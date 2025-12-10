@@ -1,4 +1,6 @@
+#include <GL/glew.h>
 #include <raylib.h>
+#include <rlgl.h>
 #include <cuda_runtime.h>
 #include <math.h>
 
@@ -7,7 +9,7 @@
 #define BSIZE 16
 
 __global__
-void renderPixel(int width, int height, vec3 c_pos, vec3 c_rot, Light *ls, Color* pixels)
+void renderPixel(int width, int height, vec3 c_pos, vec3 c_rot, Light *ls, uchar4* pixels)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -27,10 +29,10 @@ void renderPixel(int width, int height, vec3 c_pos, vec3 c_rot, Light *ls, Color
     vec4 final = render(ro, rd, ls);
 
     int idx = y * width + x;
-    pixels[idx].r = (unsigned char)(final.x * 255);
-    pixels[idx].g = (unsigned char)(final.y * 255);
-    pixels[idx].b = (unsigned char)(final.z * 255);
-    pixels[idx].a = (unsigned char)(final.w * 255);
+    pixels[idx].x = (unsigned char)(final.x * 255);
+    pixels[idx].y = (unsigned char)(final.y * 255);
+    pixels[idx].z = (unsigned char)(final.z * 255);
+    pixels[idx].w = (unsigned char)(final.w * 255);
 }
 
 
@@ -40,10 +42,32 @@ int main(void)
     const int screenHeight = 512;
 
     InitWindow(screenWidth, screenHeight, "CUDA Raymarch Test");
+    SetTargetFPS(60);
 
-    // Raylib image + texture (CPU → GPU)
-    Image canvas = GenImageColor(screenWidth, screenHeight, BLACK);
-    Texture2D tex = LoadTextureFromImage(canvas);
+    glewExperimental = true;
+    int ok = glewInit();
+
+    Texture texture;
+
+    texture.width = screenWidth;
+    texture.height = screenHeight;
+    size_t bufferSize = screenHeight * screenWidth * sizeof(uchar4);
+    
+    unsigned char *cudaBuffer = nullptr;
+    uchar4 *gpuBuffer = nullptr;
+
+    cudaMalloc(&gpuBuffer, bufferSize);
+    cudaBuffer = new unsigned char[bufferSize];
+
+    glGenTextures(1, &texture.id);
+    glBindTexture(GL_TEXTURE_2D, texture.id);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    texture.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+    texture.mipmaps = 1;
 
     // Camera
     Camera camera = {0};
@@ -52,10 +76,6 @@ int main(void)
     camera.up       = {0.0f, 1.0f,  0.0f};
     camera.fovy     = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
-
-    // Convert to your vec3
-    vec3 c_pos(camera.position.x, camera.position.y, camera.position.z);
-    vec3 c_target(camera.target.x, camera.target.y, camera.target.z);
 
     // Lights
     Light hLight(
@@ -71,10 +91,6 @@ int main(void)
     cudaMalloc(&dLight, sizeof(Light));
     cudaMemcpy(dLight, &hLight, sizeof(Light), cudaMemcpyHostToDevice);
 
-    // GPU pixel buffer
-    Color* dPixels = nullptr;
-    cudaMalloc(&dPixels, screenWidth * screenHeight * sizeof(Color));
-
     // Block + grid
     dim3 block(BSIZE, BSIZE);
     dim3 grid(
@@ -82,54 +98,49 @@ int main(void)
         (screenHeight + BSIZE - 1) / BSIZE
     );
 
-    SetTargetFPS(60);
-
-    // Update camera
-    // UpdateCamera(&camera, CAMERA_FREE);
-
-    // Compute rotation
-    vec3 eye(camera.position.x, camera.position.y, camera.position.z);
-    vec3 tgt(camera.target.x, camera.target.y, camera.target.z);
-    vec3 fw = normalize(tgt - eye);
-
-    vec3 c_rot(asinf(fw.y), atan2f(fw.x, fw.z), 0);
-
-    // Launch CUDA kernel
-    renderPixel<<<grid, block>>>(
-        screenWidth, screenHeight,
-        eye, c_rot,
-        dLight,
-        dPixels
-    );
-    cudaDeviceSynchronize();
-
-    // Copy results back
-    cudaMemcpy(
-        canvas.data,
-        dPixels,
-        screenWidth * screenHeight * sizeof(Color),
-        cudaMemcpyDeviceToHost
-    );
-
-    // Update GPU texture
-    UpdateTexture(tex, canvas.data);
-
     while (!WindowShouldClose())
     {
+
+        // Update camera
+        UpdateCamera(&camera, CAMERA_FREE);
+
+        // Compute rotation
+        vec3 eye(camera.position.x, camera.position.y, camera.position.z);
+        vec3 tgt(camera.target.x, camera.target.y, camera.target.z);
+        vec3 fw = normalize(tgt - eye);
+
+        vec3 c_rot(asinf(fw.y), atan2f(fw.x, fw.z), 0);
+
+        // Launch CUDA kernel
+        renderPixel<<<grid, block>>>(
+            screenWidth, screenHeight,
+            eye, c_rot,
+            dLight,
+            gpuBuffer
+        );
+        
+        cudaDeviceSynchronize();
+
+        cudaMemcpy(cudaBuffer, gpuBuffer, bufferSize, cudaMemcpyDeviceToHost);
+
+        glBindTexture(GL_TEXTURE_2D, texture.id);
+        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, texture.width, texture.height, GL_RGBA, GL_UNSIGNED_BYTE, cudaBuffer);
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         // Draw to screen
         BeginDrawing();
             ClearBackground(BLACK);
-            DrawTexture(tex, 0, 0, WHITE);
+            DrawTexture(texture, 0, 0, WHITE);
             DrawFPS(10, 10);
         EndDrawing();
     }
 
     // Cleanup
-    cudaFree(dPixels);
+
+    cudaFree(gpuBuffer);
+    delete[] cudaBuffer;
+    glDeleteTextures(1, &texture.id);
     cudaFree(dLight);
-    UnloadTexture(tex);
-    UnloadImage(canvas);
 
     CloseWindow();
     return 0;

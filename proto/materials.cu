@@ -2,7 +2,6 @@
 #include "bump.cuh"
 #include "uv.cuh"
 #include "consts.cuh"
-#include "camera.cuh"
 
 /* - - - - - -  MATERIALS - - - - - - */
 
