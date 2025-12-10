@@ -57,6 +57,9 @@ void renderKernel(uchar4* buffer, int width, int height,
 
 int main()
 {
+
+    vec2 res(float(WIDTH), float(HEIGHT));
+
     // --- Init ---
     SetConfigFlags(FLAG_VSYNC_HINT); // VSync ayuda a no saturar la cola
     InitWindow(WIDTH, HEIGHT, "CUDA Stable Raymarcher");
@@ -95,25 +98,29 @@ int main()
     dim3 block(BSIZE, BSIZE);
     dim3 grid((WIDTH + BSIZE - 1) / BSIZE, (HEIGHT + BSIZE - 1) / BSIZE);
 
-    Camera cam = {0};
-    cam.position = {0.0f, 0.f, -2.0f};
-    cam.target   = {0.0f, 0.f,  1.0f};
-    cam.up       = {0.0f, 1.0f, 0.0f};
-    cam.fovy     = 45.0f;
-    cam.projection = CAMERA_PERSPECTIVE;
+    vec3 eye(.0, .0, -1.5);
+    vec3 tgt(.0);
 
-    // -------------------------------------------------------------------------
-    // BUCLE
-    // -------------------------------------------------------------------------
+    vec2 mp(.0), yp(.0);
+
     while (!WindowShouldClose())
     {
-        UpdateCamera(&cam, CAMERA_FREE);
 
-        vec3 eye(cam.position.x, cam.position.y, cam.position.z);
-        vec3 tgt(cam.target.x, cam.target.y, cam.target.z);
+        Vector2 delt = GetMouseDelta();
+
+        if(IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+            yp.x = -delt.x * 0.01;
+            yp.y = -delt.y * 0.01;
+        } else yp.x = yp.y = .0;
+    
+
+        //yp = (mp + res/vec2(2.))/res/vec2(2.) * vec2(PI*2) - vec2(PI);
+
+        eye = rotate_point_zy(yp.y, eye, tgt);
+        eye = rotate_point_xz(yp.x, eye, tgt);
 
         vec3 fw = normalize(tgt - eye);
-        vec3 c_rot(asinf(fw.y), atan2f(fw.x, fw.z), 0);
+        vec3 c_rot(asinf(fw.y), -atan2f(fw.x, fw.z), 0);
 
         // 1. Ejecutar Kernel sobre el buffer persistente (d_pixelBuffer)
         // Esto es pura memoria de GPU, rapidísimo.

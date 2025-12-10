@@ -37,4 +37,46 @@ vec3 applyTransform(vec3 p, vec3 pos, mat3 rot) {
     return transpose(rot) * (p - pos);
 }
 
+__host__ vec3 rotate_point_xz(float angleInRads, vec3 p, vec3 o)
+{
+  float s = sin(angleInRads);
+  float c = cos(angleInRads);
+
+  // translate point back to origin:
+  p.x -= o.x;
+  p.z -= o.z;
+
+  // rotate point
+  float xnew = p.x * c - p.z * s;
+  float ynew = p.x * s + p.z * c;
+
+  // translate point back:
+  p.x = xnew + o.x;
+  p.z = ynew + o.z;
+
+  return p;
+}
+
+__host__ vec3 rotate_point_zy(float angleInRads, vec3 p, vec3 o)
+{
+
+  float s = sin(angleInRads);
+  float c = cos(angleInRads);
+
+  // translate point back to origin:
+  p.z -= o.z;
+  p.y -= o.y;
+
+  // rotate point
+  float xnew = p.z * c - p.y * s;
+  float ynew = p.z * s + p.y * c;
+
+  // translate point back:
+  p.z = xnew + o.z;
+  p.y = ynew + o.y;
+
+  return p;
+}
+
+
 #endif

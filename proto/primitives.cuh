@@ -12,6 +12,18 @@ using namespace glm;
 
 /* - - - - - -  PRIMITIVES - - - - - - */
 
+// Empty Hit
+
+__host__ __device__
+Hit empty(vec3 p) {
+    Hit ret;
+    ret.d       = 1.f;
+    ret.pos     = p;
+    ret.rfp     = p; 
+    ret.rfr     = mat3(1.);
+    return ret;   
+}
+
 // Sphere
 
 __host__ __device__

@@ -42,7 +42,7 @@ Hit cartoon(Hit h, vec3 col) {
     h.spc = 2;
     h.lth = 0;
 
-    h.trs = 0.4;
+    h.trs = 0;
 
     h.normal = BUMP(c_bump, h, 0.002);
 
