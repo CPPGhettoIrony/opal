@@ -70,7 +70,7 @@ int main()
     #endif
 
     // --- Init ---
-    SetConfigFlags(FLAG_VSYNC_HINT); // VSync ayuda a no saturar la cola
+    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE); // VSync ayuda a no saturar la cola
     InitWindow(WIDTH, HEIGHT, "CUDA Stable Raymarcher");
     SetTargetFPS(60); // Limitar FPS es clave para no sobrecalentar/saturar
     glewInit();
@@ -107,21 +107,30 @@ int main()
     dim3 block(BSIZE, BSIZE);
     dim3 grid((WIDTH + BSIZE - 1) / BSIZE, (HEIGHT + BSIZE - 1) / BSIZE);
 
-    vec3 eye(.0, .0, -1.5);
-    vec3 tgt(.0);
+    vec3 eye(.0, .0, -1.5), tgt(.0), yp(.0);
 
-    vec2 yp(.0);
+    Rectangle viewRect{0, 0, WIDTH, HEIGHT};
 
     while (!WindowShouldClose())
     {
 
-        Vector2 delt = GetMouseDelta();
+        if(IsKeyDown(KEY_R)) {
+            eye = vec3(.0, .0, -1.5);
+            tgt = vec3(.0);
+        }
+
+        Vector2 delt = GetMouseDelta(),
+                mpos = GetMousePosition();
 
         if(IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             yp.x = -delt.x * 0.01;
             yp.y = -delt.y * 0.01;
         } else yp.x = yp.y = .0;
-    
+
+        if(IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+            viewRect.x += delt.x;
+            viewRect.y += delt.y;
+        }
 
         //yp = (mp + res/vec2(2.))/res/vec2(2.) * vec2(PI*2) - vec2(PI);
 
@@ -130,6 +139,15 @@ int main()
 
         vec3 fw = normalize(tgt - eye);
         vec3 c_rot(asinf(fw.y), -atan2f(fw.x, fw.z), 0);
+
+        if(GetMouseWheelMove()) {
+            if(CheckCollisionPointRec(mpos, viewRect))
+                eye += fw * (GetMouseWheelMove()/2.f);
+            else {
+                viewRect.width  +=  GetMouseWheelMove()*10;
+                viewRect.height +=  GetMouseWheelMove()*10;
+            }
+        }
 
         // 1. Ejecutar Kernel sobre el buffer persistente (d_pixelBuffer)
         // Esto es pura memoria de GPU, rapidísimo.
@@ -161,9 +179,9 @@ int main()
 
         // --- Draw ---
         BeginDrawing();
-            ClearBackground(BLACK);
-            DrawTexture(texture, 0, 0, WHITE);
-            DrawFPS(10, 10);
+            ClearBackground(DARKGRAY);
+            DrawTexturePro(texture, {0, 0, WIDTH, HEIGHT}, viewRect, {0, 0} , 0, WHITE);
+            DrawFPS(viewRect.x, viewRect.y);
         EndDrawing();
     }
 
