@@ -31,7 +31,7 @@ void check_cuda(cudaError_t result, char const *const func, const char *const fi
 // -----------------------------------------------------------------------------
 __global__
 void renderKernel(uchar4* buffer, int width, int height,
-                  vec3 c_pos, vec3 c_rot, Light* lights)
+                  vec3 c_pos, vec3 c_rot, Light* lights, const Args* a)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -49,7 +49,7 @@ void renderKernel(uchar4* buffer, int width, int height,
     vec3 rd = rotationFromEuler(c_rot) * normalize(vec3(normCoord * FOV, 1.0));
 
     // Render
-    vec4 col = render(ro, rd, lights);
+    vec4 col = render(ro, rd, lights, *a);
 
     // Escribir en buffer lineal
     int idx = y * width + x;
@@ -111,6 +111,9 @@ int main()
 
     Rectangle viewRect{0, 0, WIDTH, HEIGHT};
 
+    Args localArgs, *deviceArgs;
+    checkCudaErrors(cudaMalloc(&deviceArgs, sizeof(Args)));
+
     while (!WindowShouldClose())
     {
 
@@ -142,8 +145,8 @@ int main()
 
         if(GetMouseWheelMove()) {
             if(IsKeyDown(KEY_LEFT_CONTROL)) {
-                viewRect.width  +=  GetMouseWheelMove()*10;
-                viewRect.height +=  GetMouseWheelMove()*10;               
+                viewRect.width  +=  GetMouseWheelMove()*20;
+                viewRect.height +=  GetMouseWheelMove()*20;               
             } else eye += fw * (GetMouseWheelMove()/2.f);
         }
 
@@ -182,9 +185,12 @@ int main()
             tgt.y -= length(fwx);
         }
 
+        updateArgs(localArgs);
+        checkCudaErrors(cudaMemcpy(deviceArgs, &localArgs, sizeof(Args), cudaMemcpyHostToDevice));
+
         // 1. Ejecutar Kernel sobre el buffer persistente (d_pixelBuffer)
         // Esto es pura memoria de GPU, rapidísimo.
-        renderKernel<<<grid, block>>>(d_pixelBuffer, WIDTH, HEIGHT, eye, c_rot, dLights);
+        renderKernel<<<grid, block>>>(d_pixelBuffer, WIDTH, HEIGHT, eye, c_rot, dLights, deviceArgs);
 
         // Chequeo de errores asíncrono
         checkCudaErrors(cudaGetLastError());
@@ -219,6 +225,7 @@ int main()
     }
 
     // --- Cleanup ---
+    checkCudaErrors(cudaFree(deviceArgs));
     checkCudaErrors(cudaFree(d_pixelBuffer)); // Liberamos el buffer al final
     checkCudaErrors(cudaFree(dLights));
     checkCudaErrors(cudaGraphicsUnregisterResource(cudaTexResource));

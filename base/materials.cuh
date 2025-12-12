@@ -2,7 +2,7 @@
 #define _MATERIALS_CUH
 
 #include "hit.cuh"
-
+#include "args.cuh"
 #include "bump.cuh"
 #include "uv.cuh"
 #include "consts.cuh"
@@ -10,7 +10,7 @@
 /* - - - - - -  MATERIALS - - - - - - */
 
 __device__
-Hit world(Hit h) {
+Hit world(Hit h, Args a) {
     h.col = vec3(0.4,0.7,1);
     return h;
 }
@@ -33,7 +33,7 @@ float c_bump(vec2 uv) {
 }
 
 __device__
-Hit cartoon(Hit h, vec3 col) {    
+Hit cartoon(Hit h, Args a, vec3 col) {    
 
     h.col = col;
     h.lco = h.col * vec3(0.3);
@@ -50,13 +50,13 @@ Hit cartoon(Hit h, vec3 col) {
 }
 
 __device__
-Hit A(Hit h) {return cartoon(h, vec3(1.0, 0.3, 0.));}
+Hit A(Hit h, Args a) {return cartoon(h, a, vec3(1.0, 0.3, 0.));}
 
 __device__
-Hit B(Hit h) {return cartoon(h, vec3(0., 1.0, 0.3));}
+Hit B(Hit h, Args a) {return cartoon(h, a, vec3(0., 1.0, 0.3));}
 
 __device__
-Hit C(Hit h) {return cartoon(h, vec3(0., 0.3, 1.0));}
+Hit C(Hit h, Args a) {return cartoon(h, a, vec3(0., 0.3, 1.0));}
 
 __device__
 float f_bump(vec2 uv) {
@@ -64,7 +64,7 @@ float f_bump(vec2 uv) {
 }
 
 __device__
-Hit floor(Hit h) {
+Hit floor(Hit h, Args a) {
 
     float d = f_bump(h.uv);
 
@@ -82,7 +82,7 @@ Hit floor(Hit h) {
 }
 
 __device__
-Hit getMaterial(Hit h, vec3 norm, uint matID) {
+Hit getMaterial(Hit h, vec3 norm, uint matID, Args a) {
 
     h.matID = matID;
 
@@ -101,10 +101,10 @@ Hit getMaterial(Hit h, vec3 norm, uint matID) {
     h.uv = averagev2(n, uvX, uvY, uvZ);
 
     switch(matID) {
-        case 1:  return A(h);      
-        case 2:  return B(h);      
-        case 3:  return C(h);      
-        case 4:  return floor(h);  
+        case 1:  return A(h, a);      
+        case 2:  return B(h, a);      
+        case 3:  return C(h, a);      
+        case 4:  return floor(h, a);  
         default: return def(h);   
     }
     

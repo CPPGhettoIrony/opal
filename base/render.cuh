@@ -6,13 +6,14 @@
 #include "consts.cuh"
 #include "transform.cuh"
 
+#include "args.cuh"
 #include "hit.cuh"
 #include "scene.cuh"
 #include "materials.cuh"
 
 // Raymarching loop
 __device__
-Hit raymarch(vec3 ro, vec3 rd) {
+Hit raymarch(vec3 ro, vec3 rd, Args a) {
 
     const vec2 e = vec2(EPSILON, 0.0);
 
@@ -24,22 +25,22 @@ Hit raymarch(vec3 ro, vec3 rd) {
 
         vec3 p = ro + rd * t;
 
-        h  = scene(p, vec3(0, 0, 0));
+        h  = scene(p, vec3(0, 0, 0), a);
 
         if (h.d < EPSILON) {
 
-            h1 = scene(p + vec3(e.x, e.y, e.y), vec3(0, 0, 0));
-            h2 = scene(p - vec3(e.x, e.y, e.y), vec3(0, 0, 0));
+            h1 = scene(p + vec3(e.x, e.y, e.y), vec3(0, 0, 0), a);
+            h2 = scene(p - vec3(e.x, e.y, e.y), vec3(0, 0, 0), a);
 
-            h3 = scene(p + vec3(e.y, e.x, e.y), vec3(0, 0, 0));
-            h4 = scene(p - vec3(e.y, e.x, e.y), vec3(0, 0, 0));
+            h3 = scene(p + vec3(e.y, e.x, e.y), vec3(0, 0, 0), a);
+            h4 = scene(p - vec3(e.y, e.x, e.y), vec3(0, 0, 0), a);
 
-            h5 = scene(p + vec3(e.y, e.y, e.x), vec3(0, 0, 0));
-            h6 = scene(p - vec3(e.y, e.y, e.x), vec3(0, 0, 0));
+            h5 = scene(p + vec3(e.y, e.y, e.x), vec3(0, 0, 0), a);
+            h6 = scene(p - vec3(e.y, e.y, e.x), vec3(0, 0, 0), a);
 
             vec3 normal = normalize(vec3(h1.d - h2.d, h3.d - h4.d, h5.d - h6.d));
 
-            h = scene(p, normal);
+            h = scene(p, normal, a);
 
             h.dir = normalize(rd);
             h.len = t;
@@ -57,15 +58,15 @@ Hit raymarch(vec3 ro, vec3 rd) {
 }
 
 __device__
-Hit neg_scene(vec3 p, vec3 n) {
-    Hit ret = scene(p, n);
+Hit neg_scene(vec3 p, vec3 n, Args a) {
+    Hit ret = scene(p, n, a);
     ret.d = -ret.d;
     return ret;
 }
 
 // Raymarching loop within objects for transparency
 __device__
-Hit reverse_raymarch(vec3 ro, vec3 rd) {
+Hit reverse_raymarch(vec3 ro, vec3 rd, Args a) {
 
     const vec2 e = vec2(EPSILON, 0.0);
 
@@ -77,23 +78,23 @@ Hit reverse_raymarch(vec3 ro, vec3 rd) {
 
         vec3 p = ro + rd * t;
 
-        h  = neg_scene(p, vec3(0, 0, 0));
+        h  = neg_scene(p, vec3(0, 0, 0), a);
 
         if (h.d < EPSILON) {
 
-            h1 = neg_scene(p + vec3(e.x, e.y, e.y), vec3(0, 0, 0));
-            h2 = neg_scene(p - vec3(e.x, e.y, e.y), vec3(0, 0, 0));
+            h1 = neg_scene(p + vec3(e.x, e.y, e.y), vec3(0, 0, 0), a);
+            h2 = neg_scene(p - vec3(e.x, e.y, e.y), vec3(0, 0, 0), a);
 
-            h3 = neg_scene(p + vec3(e.y, e.x, e.y), vec3(0, 0, 0));
-            h4 = neg_scene(p - vec3(e.y, e.x, e.y), vec3(0, 0, 0));
+            h3 = neg_scene(p + vec3(e.y, e.x, e.y), vec3(0, 0, 0), a);
+            h4 = neg_scene(p - vec3(e.y, e.x, e.y), vec3(0, 0, 0), a);
 
-            h5 = neg_scene(p + vec3(e.y, e.y, e.x), vec3(0, 0, 0));
-            h6 = neg_scene(p - vec3(e.y, e.y, e.x), vec3(0, 0, 0));
+            h5 = neg_scene(p + vec3(e.y, e.y, e.x), vec3(0, 0, 0), a);
+            h6 = neg_scene(p - vec3(e.y, e.y, e.x), vec3(0, 0, 0), a);
 
             vec3 normal = normalize(vec3(h1.d - h2.d, h3.d - h4.d, h5.d - h6.d));
             h.un = normal;
 
-            h = neg_scene(p, normal);
+            h = neg_scene(p, normal, a);
 
             h.dir = normalize(rd);
             h.len = t;
@@ -155,11 +156,11 @@ vec3 lighting(Hit h, Light *ls, vec3 viewDir) {
 }
 
 __device__
-vec3 shadow(vec3 col, Hit h, Light l) {
+vec3 shadow(vec3 col, Hit h, Light l, Args a) {
 
     vec3 vec = l.point? normalize(h.pos - l.vec) : l.vec;
 
-    Hit shd = raymarch(h.pos + h.normal * vec3(EPSILON * 2), -vec);
+    Hit shd = raymarch(h.pos + h.normal * vec3(EPSILON * 2), -vec, a);
 
     if(!shd.hit) return col;
 
@@ -174,10 +175,10 @@ vec3 shadow(vec3 col, Hit h, Light l) {
 }
 
 __device__
-vec3 shadows(vec3 col, Hit h, Light *ls) {
+vec3 shadows(vec3 col, Hit h, Light *ls, Args a) {
 
     for(uint i = 0u; i < N_LIGHTS; ++i)
-        col = shadow(col, h, ls[i]);
+        col = shadow(col, h, ls[i], a);
 
     return col;
 }
@@ -196,9 +197,9 @@ vec3 basic_shading(Hit hit, Light *ls, vec3 viewDir, bool line) {
 }
 
 __device__
-Hit get_other_side(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
+Hit get_other_side(vec3 rd, Hit hit, Light *ls, vec3 viewDir, Args a) {
 
-    Hit thr = reverse_raymarch(hit.pos - hit.normal * vec3(EPSILON * 4.), rd);
+    Hit thr = reverse_raymarch(hit.pos - hit.normal * vec3(EPSILON * 4.), rd, a);
     
     // Solo calculamos luz si realmente golpeamos la cara interna
     if(thr.hit)
@@ -211,10 +212,10 @@ Hit get_other_side(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
 
 
 __device__
-Hit get_transparency(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
+Hit get_transparency(vec3 rd, Hit hit, Light *ls, vec3 viewDir, Args a) {
 
     // 1. Obtener la cara trasera
-    Hit thr = get_other_side(rd, hit, ls, viewDir);
+    Hit thr = get_other_side(rd, hit, ls, viewDir, a);
 
     // SAFETY CHECK PARA NVIDIA:
     // Si el rayo inverso falló (por ejemplo, geometría muy fina o error de float),
@@ -222,9 +223,9 @@ Hit get_transparency(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
     if(!thr.hit) return thr;
 
     // 2. Calcular qué hay DETRÁS del objeto transparente
-    Hit next = raymarch(thr.pos - thr.normal * vec3(EPSILON * 4.), thr.dir);
+    Hit next = raymarch(thr.pos - thr.normal * vec3(EPSILON * 4.), thr.dir, a);
     
-    if(!next.hit) next = world(next);
+    if(!next.hit) next = world(next, a);
     
     // Mezclar colores
     thr.col = mix(thr.col, next.col, thr.trs);
@@ -242,24 +243,24 @@ Hit get_transparency(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
 }
 
 __device__
-Hit get_reflection(vec3 rd, Hit hit, Light *ls, vec3 viewDir) {
+Hit get_reflection(vec3 rd, Hit hit, Light *ls, vec3 viewDir, Args a) {
 
     vec3 refDir = reflect(rd, hit.normal);
-    Hit ref     = raymarch(hit.pos + hit.normal * vec3(EPSILON * 2.), refDir);
+    Hit ref     = raymarch(hit.pos + hit.normal * vec3(EPSILON * 2.), refDir, a);
     
     if(ref.hit) ref.col = basic_shading(ref, ls, viewDir, false);
-    else return world(ref);
+    else return world(ref, a);
 
     return ref;
 
 }
 
 __device__
-vec4 render(vec3 ro, vec3 rd, Light *ls) {
+vec4 render(vec3 ro, vec3 rd, Light *ls, Args a) {
 
     vec3 viewDir = normalize(-rd);
 
-    Hit hit = raymarch(ro, rd);
+    Hit hit = raymarch(ro, rd, a);
 
     // The skybox (when theres no hit, it renders the skybox, there's nothing to shadow or reflect there)
     if(hit.hit) {
@@ -274,7 +275,7 @@ vec4 render(vec3 ro, vec3 rd, Light *ls) {
         if(hit.ref > 0) {
 
             // Calculate reflection on the first iteration
-            Hit ref = get_reflection(rd, hit, ls, viewDir);
+            Hit ref = get_reflection(rd, hit, ls, viewDir, a);
 
             // Apply first iteration reflection + shading + line thickness
             col = mix(col, ref.col, hit.ref);
@@ -287,7 +288,7 @@ vec4 render(vec3 ro, vec3 rd, Light *ls) {
 
                 if(!ref.hit) break;
 
-                ref     = get_reflection(ref.dir, ref, ls, viewDir);
+                ref     = get_reflection(ref.dir, ref, ls, viewDir, a);
                 fref   *= ref.ref;
 
                 col     = mix(col, ref.col, fref);
@@ -299,7 +300,7 @@ vec4 render(vec3 ro, vec3 rd, Light *ls) {
         if(hit.trs > 0) {
 
             //get first iteration of transparency
-            Hit thr = get_transparency(rd, hit, ls, viewDir);
+            Hit thr = get_transparency(rd, hit, ls, viewDir, a);
 
             col = mix(col, thr.col, hit.trs);
 
@@ -311,7 +312,7 @@ vec4 render(vec3 ro, vec3 rd, Light *ls) {
 
                 if(!thr.hit) break;
 
-                thr     = get_transparency(thr.dir, thr, ls, viewDir);
+                thr     = get_transparency(thr.dir, thr, ls, viewDir, a);
                 ftrs   *= thr.trs;
 
                 col     = mix(col, thr.col, ftrs);
@@ -321,13 +322,13 @@ vec4 render(vec3 ro, vec3 rd, Light *ls) {
         } 
 
         // Get projected shadow from other objects
-        col = shadows(col, hit, ls);
+        col = shadows(col, hit, ls, a);
 
         return vec4(col, 1.0);
 
     }
 
-    hit = world(hit);
+    hit = world(hit, a);
 
     return vec4(hit.col, 1.);
 

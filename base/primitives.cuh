@@ -29,13 +29,13 @@ float sphere(vec3 p, vec3 pos, float r) {
     return length(p - pos) - r;
 }
 __device__
-Hit sphere(vec3 p, vec3 pos, float r, vec3 n, uint matID) {
+Hit sphere(vec3 p, vec3 pos, float r, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = sphere(p , pos, r);
     ret.pos     = p;
     ret.rfp     = pos; 
     ret.rfr     = mat3(1.);
-    ret = getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID, a); 
     return ret;
 }
 
@@ -45,13 +45,13 @@ float ground(vec3 p, float h) {
     return p.y - h;
 }
 __device__
-Hit ground(vec3 p, float h, vec3 n, uint matID) {
+Hit ground(vec3 p, float h, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = p.y - h;
     ret.pos     = p;
     ret.rfp     = vec3(.0); 
     ret.rfr     = mat3(1.);
-    ret = getMaterial(ret, n, matID);
+    ret = getMaterial(ret, n, matID, a);
     return ret;
 }
 
@@ -66,13 +66,13 @@ float box(vec3 p, vec3 pos, mat3 rot, vec3 b ) {
     return box(applyTransform(p, pos, rot), b);
 }
 __device__
-Hit box(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
+Hit box(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = box(p, pos, rot, b);
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret = getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID, a); 
     return ret;
 }
 
@@ -87,13 +87,13 @@ float torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2) {
     return torus(applyTransform(p, pos, rot), r1, r2);
 }
 __device__
-Hit torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2, vec3 n, uint matID) {
+Hit torus(vec3 p, vec3 pos, mat3 rot, float r1, float r2, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = torus(p, pos, rot, r1, r2);
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret = getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID, a); 
     return ret;
 }
 
@@ -108,13 +108,13 @@ float link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2) {
     return link(applyTransform(p, pos, rot), le, r1, r2);
 }
 __device__
-Hit link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2, vec3 n, uint matID) {
+Hit link(vec3 p, vec3 pos, mat3 rot, float le, float r1, float r2, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = link(p, pos, rot, le, r1, r2);
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret = getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID, a); 
     return ret;
 }
 
@@ -138,13 +138,13 @@ float cone(vec3 p, vec3 pos, mat3 rot, float r, float h) {
     return cone(applyTransform(p, pos, rot), vec2(r, -h));
 }
 __device__
-Hit cone(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
+Hit cone(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = cone(p, pos, rot, r, h);
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret = getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID, a); 
     return ret;
 }
 
@@ -159,14 +159,14 @@ float capsule(vec3 p, vec3 pos, mat3 rot, float r, float h) {
     return capsule(applyTransform(p, pos, rot), r, h);
 }
 __device__
-Hit capsule(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
+Hit capsule(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = capsule(p, pos, rot, r, h);
     ret.len     = 0.0;
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret = getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID, a); 
     return ret;
 }
 
@@ -181,13 +181,13 @@ float cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h) {
     return cylinder(applyTransform(p, pos, rot), r, h);
 }
 __device__
-Hit cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID) {
+Hit cylinder(vec3 p, vec3 pos, mat3 rot, float r, float h, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = cylinder(p, pos, rot, r, h);
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret = getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID, a); 
     return ret;
 }
 
@@ -212,14 +212,14 @@ float octahedron(vec3 p, vec3 pos, mat3 rot, float s) {
     return octahedron(applyTransform(p, pos, rot), s);
 }
 __device__
-Hit octahedron(vec3 p, vec3 pos, mat3 rot, float s, vec3 n, uint matID) {
+Hit octahedron(vec3 p, vec3 pos, mat3 rot, float s, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = octahedron(p, pos, rot, s);
     ret.len     = 0.0;
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret = getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID, a); 
     return ret;
 }
 
@@ -235,14 +235,14 @@ float ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b ) {
     return ellipsoid(applyTransform(p, pos, rot), b);
 }
 __device__
-Hit ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID) {
+Hit ellipsoid(vec3 p, vec3 pos, mat3 rot, vec3 b, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = ellipsoid(p, pos, rot, b);
     ret.len     = 0.0;
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = rot;
-    ret = getMaterial(ret, n, matID); 
+    ret = getMaterial(ret, n, matID, a); 
     return ret;
 }
 __device__
@@ -250,23 +250,23 @@ float slope(vec3 p, vec3 pos, vec3 normal) {
     return dot((p - pos), normal);
 }
 __device__
-Hit slope(vec3 p, vec3 pos, vec3 normal, vec3 n, uint matID) {
+Hit slope(vec3 p, vec3 pos, vec3 normal, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = slope(p, pos, normal);
     ret.pos     = p;
     ret.rfp     = pos;
     ret.rfr     = mat3(1);
-    ret = getMaterial(ret, n, matID);
+    ret = getMaterial(ret, n, matID, a);
     return ret;
 }
 __device__
-Hit toHit(float d, vec3 p, vec3 rfp, mat3 rfr, vec3 n, uint matID) {
+Hit toHit(float d, vec3 p, vec3 rfp, mat3 rfr, vec3 n, uint matID, Args a) {
     Hit ret;
     ret.d       = d;
     ret.pos     = p;
     ret.rfp     = rfp;
     ret.rfr     = rfr;
-    ret = getMaterial(ret, n, matID);
+    ret = getMaterial(ret, n, matID, a);
     return ret;
 }
 
@@ -300,8 +300,8 @@ Hit morph(Hit a, Hit b, float k) {
     return r;
 }
 __device__
-Hit changeMaterial(Hit a, vec3 n, uint matID) {
-    a = getMaterial(a, n, matID);
+Hit changeMaterial(Hit a, vec3 n, uint matID, Args args) {
+    a = getMaterial(a, n, matID, args);
     return a;
 }
 
@@ -400,9 +400,9 @@ Hit intersect(Hit a, Hit b, float k) {
     return r;
 }
 __device__
-Hit color(Hit a, Hit b, float k, vec3 n) {
+Hit color(Hit a, Hit b, float k, vec3 n, Args args) {
 
-    Hit ab      = changeMaterial(a, n, b.matID);
+    Hit ab      = changeMaterial(a, n, b.matID, args);
     Hit area    = intersect(a,  b);
 
     float d;
