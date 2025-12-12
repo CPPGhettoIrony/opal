@@ -141,12 +141,45 @@ int main()
         vec3 c_rot(asinf(fw.y), -atan2f(fw.x, fw.z), 0);
 
         if(GetMouseWheelMove()) {
-            if(CheckCollisionPointRec(mpos, viewRect))
-                eye += fw * (GetMouseWheelMove()/2.f);
-            else {
+            if(IsKeyDown(KEY_LEFT_CONTROL)) {
                 viewRect.width  +=  GetMouseWheelMove()*10;
-                viewRect.height +=  GetMouseWheelMove()*10;
-            }
+                viewRect.height +=  GetMouseWheelMove()*10;               
+            } else eye += fw * (GetMouseWheelMove()/2.f);
+        }
+
+        vec3 fwa = tgt - eye;
+        vec3 fwx = vec3(fwa.x, 0.f, fwa.z) * 0.01f;
+
+        if(IsKeyDown(KEY_W)) {
+            eye += fwx;
+            tgt += fwx;
+        }
+
+        if(IsKeyDown(KEY_A)) {
+            vec3 v = rotate_point_xz(PI/2, fwx, vec3(0.));
+            eye += v;
+            tgt += v;
+        }
+
+        if(IsKeyDown(KEY_S)) {
+            eye -= fwx;
+            tgt -= fwx;
+        }
+
+        if(IsKeyDown(KEY_D)) {
+            vec3 v = rotate_point_xz(-PI/2, fwx, vec3(0.));
+            eye += v;
+            tgt += v;
+        }
+
+        if(IsKeyDown(KEY_Z)) {
+            eye.y += length(fwx);
+            tgt.y += length(fwx);
+        }
+
+        if(IsKeyDown(KEY_X)) {
+            eye.y -= length(fwx);
+            tgt.y -= length(fwx);
         }
 
         // 1. Ejecutar Kernel sobre el buffer persistente (d_pixelBuffer)
