@@ -7,11 +7,11 @@ using namespace glm;
 #include "consts.cuh"
 
 __device__
-uint hash(uint x, uint seed) {
-    const uint m = 0x5bd1e995U;
-    uint hash = seed;
+uint hash(int x, uint seed) {
+    const int m = 0x5bd1e995U;
+    int hash = seed;
     // process first vector element
-    uint k = x; 
+    int k = x; 
     k *= m;
     k ^= k >> 24;
     k *= m;
@@ -21,7 +21,7 @@ uint hash(uint x, uint seed) {
 }
 
 __device__
-uint hash(uvec2 x, uint seed){
+uint hash(ivec2 x, uint seed){
     const uint m = 0x5bd1e995U;
     uint hash = seed;
     // process first vector element
@@ -43,6 +43,21 @@ uint hash(uvec2 x, uint seed){
     hash *= m;
     hash ^= hash >> 15;
     return hash;
+}
+
+__device__
+uint hash(ivec3 v, uint seed) {
+    v = v * 1664525 + 1013904223;
+    v.x += seed;
+    v.y += v.x * seed;
+    v.z += v.y * seed;
+    
+    v ^= v >> 16;
+    v.x += v.y * v.z;
+    v.y += v.x * v.z;
+    v.z += v.x * v.y;
+    
+    return v.z;
 }
 
 __device__
@@ -75,11 +90,11 @@ __device__
 float perlin(vec2 position, uint seed) {
     vec2 floorPosition = floor(position);
     vec2 fractPosition = position - floorPosition;
-    uvec2 cellCoordinates = uvec2(floorPosition);
+    ivec2 cellCoordinates = ivec2(floorPosition);
     float value1 = dot(gradientDirection(hash(cellCoordinates, seed)), fractPosition);
-    float value2 = dot(gradientDirection(hash((cellCoordinates + uvec2(1, 0)), seed)), fractPosition - vec2(1.0, 0.0));
-    float value3 = dot(gradientDirection(hash((cellCoordinates + uvec2(0, 1)), seed)), fractPosition - vec2(0.0, 1.0));
-    float value4 = dot(gradientDirection(hash((cellCoordinates + uvec2(1, 1)), seed)), fractPosition - vec2(1.0, 1.0));
+    float value2 = dot(gradientDirection(hash((cellCoordinates + ivec2(1, 0)), seed)), fractPosition - vec2(1.0, 0.0));
+    float value3 = dot(gradientDirection(hash((cellCoordinates + ivec2(0, 1)), seed)), fractPosition - vec2(0.0, 1.0));
+    float value4 = dot(gradientDirection(hash((cellCoordinates + ivec2(1, 1)), seed)), fractPosition - vec2(1.0, 1.0));
     return interpolate(value1, value2, value3, value4, fade(fractPosition));
 }
 
@@ -108,7 +123,7 @@ float voronoi(vec2 uv, float randomness, uint seed) {
     // Check neighboring cells (3x3 grid)
     for (int j = -1; j <= 1; ++j) {
         for (int i = -1; i <= 1; ++i) {
-            uvec2 neighbor = uvec2(cell) + uvec2(i, j);
+            ivec2 neighbor = ivec2(cell) + ivec2(i, j);
 
             // Hash determines the feature point inside the cell
             uint h = hash(neighbor, seed);
@@ -121,6 +136,44 @@ float voronoi(vec2 uv, float randomness, uint seed) {
             float dist = length(fract - feature);
 
             minDist = min(minDist, dist);
+        }
+    }
+
+    return minDist;
+}
+
+__device__
+float voronoi(vec3 uv, float randomness, uint seed) {
+    vec3 cell = floor(uv);
+    vec3 fract = uv - cell;
+
+    float minDist = 1e10;
+
+    // Check neighboring cells (3x3x3 grid)
+    for (int k = -1; k <= 1; ++k) {
+        for (int j = -1; j <= 1; ++j) {
+            for (int i = -1; i <= 1; ++i) {
+                ivec3 neighbor = ivec3(cell) + ivec3(i, j, k);
+
+                // Hash determines the feature point inside the cell
+                // Note: You need a hash overload that accepts uvec3
+                uint h = hash(neighbor, seed);
+
+                // Extract 3 components for X, Y, Z from the 32-bit hash
+                vec3 random_offset = vec3(
+                    h & 0xFFu, 
+                    (h >> 8) & 0xFFu, 
+                    (h >> 16) & 0xFFu
+                ) / 255.0f; // [0,1)
+
+                // Interpolate between center of cell and random offset
+                vec3 offset = mix(vec3(0.5), random_offset, clamp(randomness, 0.0f, 1.0f));
+
+                vec3 feature = vec3(i, j, k) + offset;
+                float dist = length(fract - feature);
+
+                minDist = min(minDist, dist);
+            }
         }
     }
 

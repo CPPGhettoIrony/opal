@@ -21,9 +21,13 @@ Hit raymarch(vec3 ro, vec3 rd, Args a) {
 
     float t = 0.0;
 
-    for (int i = 0; i < 512 && t < MAX_DISTANCE; ++i) {
+    for (int i = 0; i < STEPS && t < MAX_DISTANCE; ++i) {
 
-        vec3 p = ro + rd * t;
+        #ifdef RENDER
+            vec3 p = ro + rd * STEP_SIZE * t;
+        #else 
+            vec3 p = ro + rd * t;
+        #endif
 
         h  = scene(p, vec3(0, 0, 0), a);
 
@@ -265,8 +269,9 @@ vec4 render(vec3 ro, vec3 rd, Light *ls, Args a) {
     // The skybox (when theres no hit, it renders the skybox, there's nothing to shadow or reflect there)
     if(hit.hit) {
 
-        //return vec4(hit.col, 1.);
-        //return vec4(vec3(mix(vec3(0.5), vec3(1), dot(viewDir, hit.normal))), 1.) * vec4(hit.col, 1.);
+        #ifdef DEBUG
+            return vec4(vec3(mix(vec3(0.5), vec3(1), dot(viewDir, hit.normal))), 1.) * vec4(hit.col, 1.);
+        #endif
 
         vec3 col = basic_shading(hit, ls, viewDir, true);
 

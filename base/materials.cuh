@@ -40,11 +40,27 @@ Hit cartoon(Hit h, Args a, vec3 col) {
     h.ref = 0.2;
     h.shn = 128;
     h.spc = 2;
-    h.lth = 0.1;
+    h.lth = 0;
 
     h.trs = 0.2;
 
     h.normal = BUMP(c_bump, h, 0.002);
+
+    return h;
+}
+
+__device__
+Hit hair(Hit h, Args a) {    
+
+    h.col = vec3(0.2);
+    h.ref = 0;
+    h.shn = 64;
+    h.spc = 2;
+    h.lth = 0;
+
+    h.trs = 0;
+
+    //h.normal = BUMP(c_bump, h, 0.002);
 
     return h;
 }
@@ -104,7 +120,8 @@ Hit getMaterial(Hit h, vec3 norm, uint matID, Args a) {
         case 1:  return A(h, a);      
         case 2:  return B(h, a);      
         case 3:  return C(h, a);      
-        case 4:  return floor(h, a);  
+        case 4:  return floor(h, a);
+        case 5:  return hair(h, a);  
         default: return def(h);   
     }
     
