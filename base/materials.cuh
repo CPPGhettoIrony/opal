@@ -66,13 +66,13 @@ Hit hair(Hit h, Args a) {
 }
 
 __device__
-Hit A(Hit h, Args a) {return cartoon(h, a, vec3(1.0, 0.3, 0.));}
+Hit A(Hit h, Args a) {return cartoon(h, a, a.col);}
 
 __device__
-Hit B(Hit h, Args a) {return cartoon(h, a, vec3(0., 1.0, 0.3));}
+Hit B(Hit h, Args a) {return cartoon(h, a, vec3(a.col.z, a.col.x, a.col.y));}
 
 __device__
-Hit C(Hit h, Args a) {return cartoon(h, a, vec3(0., 0.3, 1.0));}
+Hit C(Hit h, Args a) {return cartoon(h, a, vec3(a.col.y, a.col.z, a.col.x));}
 
 __device__
 float f_bump(vec2 uv) {

@@ -1,3 +1,5 @@
+#define RAYGUI_IMPLEMENTATION
+
 #include <GL/glew.h>
 #include <raylib.h>
 #include <cuda_runtime.h>
@@ -61,6 +63,12 @@ void renderKernel(uchar4* buffer, int width, int height,
     );
 }
 
+DECLARE_WINDOW(fpsWindow, 10, 10, 100, 100)
+
+static void drawFPSWindow(Vector2 p, Vector2 s, Args& a) {
+    DrawFPS(p.x + 5, p.y + 25);
+}
+
 int main()
 {
 
@@ -71,7 +79,7 @@ int main()
 
     // --- Init ---
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE); // VSync ayuda a no saturar la cola
-    InitWindow(WIDTH, HEIGHT, "CUDA Stable Raymarcher");
+    InitWindow(1920, 1080, "CUDA Stable Raymarcher");
     SetTargetFPS(60); // Limitar FPS es clave para no sobrecalentar/saturar
     glewInit();
 
@@ -109,7 +117,7 @@ int main()
 
     vec3 eye(.0, .0, -1.5), tgt(.0), yp(.0);
 
-    Rectangle viewRect{0, 0, WIDTH, HEIGHT};
+    Rectangle viewRect{(GetScreenWidth() - WIDTH) / 2, (GetScreenHeight() - HEIGHT) / 2, WIDTH, HEIGHT};
 
     Args localArgs, *deviceArgs;
     checkCudaErrors(cudaMalloc(&deviceArgs, sizeof(Args)));
@@ -125,7 +133,7 @@ int main()
         Vector2 delt = GetMouseDelta(),
                 mpos = GetMousePosition();
 
-        if(IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        if(IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
             yp.x = -delt.x * 0.01;
             yp.y = -delt.y * 0.01;
         } else yp.x = yp.y = .0;
@@ -143,7 +151,7 @@ int main()
         vec3 fw = normalize(tgt - eye);
         vec3 c_rot(asinf(fw.y), -atan2f(fw.x, fw.z), 0);
 
-        if(GetMouseWheelMove()) {
+        if(GetMouseWheelMove() && CheckCollisionPointRec(mpos, viewRect)) {
             if(IsKeyDown(KEY_LEFT_CONTROL)) {
                 viewRect.width  +=  GetMouseWheelMove()*20;
                 viewRect.height +=  GetMouseWheelMove()*20;               
@@ -185,12 +193,10 @@ int main()
             tgt.y -= length(fwx);
         }
 
-        updateArgs(localArgs);
-        checkCudaErrors(cudaMemcpy(deviceArgs, &localArgs, sizeof(Args), cudaMemcpyHostToDevice));
-
         // 1. Ejecutar Kernel sobre el buffer persistente (d_pixelBuffer)
         // Esto es pura memoria de GPU, rapidísimo.
         renderKernel<<<grid, block>>>(d_pixelBuffer, WIDTH, HEIGHT, eye, c_rot, dLights, deviceArgs);
+        checkCudaErrors(cudaDeviceSynchronize());
 
         // Chequeo de errores asíncrono
         checkCudaErrors(cudaGetLastError());
@@ -220,8 +226,10 @@ int main()
         BeginDrawing();
             ClearBackground(DARKGRAY);
             DrawTexturePro(texture, {0, 0, WIDTH, HEIGHT}, viewRect, {0, 0} , 0, WHITE);
-            DrawFPS(viewRect.x, viewRect.y);
+            DRAW_WINDOW(fpsWindow, "FPS", drawFPSWindow, localArgs)
+            updateArgs(localArgs);
         EndDrawing();
+        checkCudaErrors(cudaMemcpy(deviceArgs, &localArgs, sizeof(Args), cudaMemcpyHostToDevice));
     }
 
     // --- Cleanup ---
