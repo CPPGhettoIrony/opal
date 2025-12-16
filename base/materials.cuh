@@ -98,31 +98,31 @@ Hit floor(Hit h, Args a) {
 }
 
 __device__
-Hit getMaterial(Hit h, vec3 norm, uint matID, Args a) {
+Hit getMaterial(Hit hit, vec3 norm, uint matID, Args args) {
 
-    h.matID = matID;
+    hit.matID = matID;
 
-    vec3 surfacePosition = modv(h.pos - h.rfp, 1., 0.);
+    vec3 surfacePosition = transpose(hit.rfr) * modv(hit.pos - hit.rfp, 1., 0.);
 
     vec3 n = pow(abs(norm), vec3(8.0));
     n /= max(dot(norm, vec3(1.0)), EPSILON);
 
-    h.un = norm;
-    h.normal = norm;
+    hit.un = norm;
+    hit.normal = norm;
 
     vec2 uvX(surfacePosition.y, surfacePosition.z);
     vec2 uvY(surfacePosition.x, surfacePosition.z);
     vec2 uvZ(surfacePosition.x, surfacePosition.y);
 
-    h.uv = averagev2(n, uvX, uvY, uvZ);
+    hit.uv = averagev2(n, uvX, uvY, uvZ);
 
     switch(matID) {
-        case 1:  return A(h, a);      
-        case 2:  return B(h, a);      
-        case 3:  return C(h, a);      
-        case 4:  return floor(h, a);
-        case 5:  return hair(h, a);  
-        default: return def(h);   
+        case 1:  return A(hit, args);      
+        case 2:  return B(hit, args);      
+        case 3:  return C(hit, args);      
+        case 4:  return floor(hit, args);
+        case 5:  return hair(hit, args);  
+        default: return def(hit);   
     }
     
 }

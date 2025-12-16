@@ -71,6 +71,7 @@ struct Context {
     uchar4* d_pixelBuffer;
     Rectangle viewRect;
 
+    const vec3 eye_i, tgt_i;
     vec3 eye, tgt, yp;
 
     Args localArgs, *deviceArgs;
@@ -80,8 +81,7 @@ struct Context {
 
     __host__
     Context(vec3 e, vec3 t): 
-        eye(e), tgt(t), yp(.0), 
-        viewRect{(GetScreenWidth() - WIDTH) / 2, (GetScreenHeight() - HEIGHT) / 2, WIDTH, HEIGHT}, 
+        eye_i(e), tgt_i(t), eye(e), tgt(t), yp(.0), 
         block(BSIZE, BSIZE), grid((WIDTH + BSIZE - 1) / BSIZE, (HEIGHT + BSIZE - 1) / BSIZE)
     {
         #ifndef NVIDIA_DESKTOP
@@ -94,6 +94,12 @@ struct Context {
         InitWindow(1920, 1080, "CUDA Stable Raymarcher");
         SetTargetFPS(60); // Limitar FPS es clave para no sobrecalentar/saturar
         glewInit();
+
+        viewRect.x = (GetScreenWidth()/2 - WIDTH) / 2;
+        viewRect.y = (GetScreenHeight() - HEIGHT) / 2;
+
+        viewRect.width = WIDTH;
+        viewRect.height= HEIGHT;
 
         // --- OpenGL Texture ---
         glGenTextures(1, &texture.id);
@@ -126,9 +132,10 @@ struct Context {
     __host__
     void processViewport() {
 
+        // Reset Viewport
         if(IsKeyDown(KEY_R)) {
-            eye = vec3(.0, .0, -1.5);
-            tgt = vec3(.0);
+            eye = eye_i;
+            tgt = tgt_i;
         }
 
         Vector2 delt = GetMouseDelta(),
@@ -234,6 +241,7 @@ struct Context {
 
     __host__
     void endRender() {
+        updateArgs(localArgs);
         EndDrawing();
         checkCudaErrors(cudaMemcpy(deviceArgs, &localArgs, sizeof(Args), cudaMemcpyHostToDevice));
     }
