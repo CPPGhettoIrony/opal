@@ -1,35 +1,13 @@
-#define RAYGUI_IMPLEMENTATION
+#ifndef _CONTEXT_CUH
+#define _CONTEXT_CUH
 
 #include <GL/glew.h>
 #include <raylib.h>
 #include <cuda_runtime.h>
 #include <cuda_gl_interop.h>
+#include <cstdio>
 
 #include <render.cuh>
-
-//#include <context.cuh>
-
-DECLARE_WINDOW(fpsWindow, 10, 10, 100, 100)
-
-static void drawFPSWindow(Vector2 p, Vector2 s, Args& a) {
-    DrawFPS(p.x + 5, p.y + 25);
-}
-
-/*
-int main() {
-
-    Context context(vec3(0., 0., -15), vec3(0.));
-
-    while (RUNNING) {
-        context.processViewport();
-        context.beginRender();
-            DRAW_WINDOW(fpsWindow, "FPS", drawFPSWindow, context.localArgs)
-        context.endRender();
-    }
-
-    return 0;
-}
-*/
 
 #define BSIZE 16
 
@@ -41,6 +19,8 @@ int main() {
     #define HEIGHT 512
 #endif
 
+#define RUNNING !WindowShouldClose()
+
 // Macro para chequear errores de CUDA (vital para debuggear caídas de FPS)
 #define checkCudaErrors(val) check_cuda( (val), #val, __FILE__, __LINE__ )
 void check_cuda(cudaError_t result, char const *const func, const char *const file, int const line) {
@@ -51,9 +31,6 @@ void check_cuda(cudaError_t result, char const *const func, const char *const fi
     }
 }
 
-// -----------------------------------------------------------------------------
-// Kernel Básico (Escribe en un buffer plano, muy estable)
-// -----------------------------------------------------------------------------
 __global__
 void renderKernel(uchar4* buffer, int width, int height,
                   vec3 c_pos, vec3 c_rot, Light* lights, const Args* a)
@@ -86,61 +63,68 @@ void renderKernel(uchar4* buffer, int width, int height,
     );
 }
 
-int main()
-{
+struct Context {
 
-    #ifndef NVIDIA_DESKTOP
-        setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 1);
-        setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 1);
-    #endif
-
-    // --- Init ---
-    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE); // VSync ayuda a no saturar la cola
-    InitWindow(1920, 1080, "CUDA Stable Raymarcher");
-    SetTargetFPS(60); // Limitar FPS es clave para no sobrecalentar/saturar
-    glewInit();
-
-    // --- OpenGL Texture ---
     Texture texture;
-    glGenTextures(1, &texture.id);
-    glBindTexture(GL_TEXTURE_2D, texture.id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    texture.width = WIDTH;
-    texture.height = HEIGHT;
-    texture.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
-    texture.mipmaps = 1;
-
-    // --- Registrar para escritura estándar ---
     cudaGraphicsResource* cudaTexResource;
-    checkCudaErrors(cudaGraphicsGLRegisterImage(&cudaTexResource, texture.id, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard));
-
-    // --- Allocations (SOLO UNA VEZ) ---
-    Light hLight(vec3(1.0, 1.0, 1.0), false, normalize(vec3(0.75, -1.0, 0.3)), 0.9f, 0.6f);
     Light* dLights;
-    checkCudaErrors(cudaMalloc(&dLights, sizeof(Light)));
-    checkCudaErrors(cudaMemcpy(dLights, &hLight, sizeof(Light), cudaMemcpyHostToDevice));
-
-    // ** AQUÍ ESTA LA CLAVE **
-    // Reservamos el buffer de píxeles UNA VEZ. No en el bucle.
     uchar4* d_pixelBuffer;
-    checkCudaErrors(cudaMalloc(&d_pixelBuffer, WIDTH * HEIGHT * sizeof(uchar4)));
+    Rectangle viewRect;
 
-    dim3 block(BSIZE, BSIZE);
-    dim3 grid((WIDTH + BSIZE - 1) / BSIZE, (HEIGHT + BSIZE - 1) / BSIZE);
-
-    vec3 eye(.0, .0, -1.5), tgt(.0), yp(.0);
-
-    Rectangle viewRect{(GetScreenWidth() - WIDTH) / 2, (GetScreenHeight() - HEIGHT) / 2, WIDTH, HEIGHT};
+    vec3 eye, tgt, yp;
 
     Args localArgs, *deviceArgs;
-    checkCudaErrors(cudaMalloc(&deviceArgs, sizeof(Args)));
 
-    while (!WindowShouldClose())
+
+    dim3 block, grid;
+
+    __host__
+    Context(vec3 e, vec3 t): 
+        eye(e), tgt(t), yp(.0), 
+        viewRect{(GetScreenWidth() - WIDTH) / 2, (GetScreenHeight() - HEIGHT) / 2, WIDTH, HEIGHT}, 
+        block(BSIZE, BSIZE), grid((WIDTH + BSIZE - 1) / BSIZE, (HEIGHT + BSIZE - 1) / BSIZE)
     {
+        #ifndef NVIDIA_DESKTOP
+            setenv("__NV_PRIME_RENDER_OFFLOAD", "1", 1);
+            setenv("__GLX_VENDOR_LIBRARY_NAME", "nvidia", 1);
+        #endif
+
+        // --- Init ---
+        SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE); // VSync ayuda a no saturar la cola
+        InitWindow(1920, 1080, "CUDA Stable Raymarcher");
+        SetTargetFPS(60); // Limitar FPS es clave para no sobrecalentar/saturar
+        glewInit();
+
+        // --- OpenGL Texture ---
+        glGenTextures(1, &texture.id);
+        glBindTexture(GL_TEXTURE_2D, texture.id);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, WIDTH, HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        texture.width = WIDTH;
+        texture.height = HEIGHT;
+        texture.format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8;
+        texture.mipmaps = 1;
+
+        // --- Registrar para escritura estándar ---
+        checkCudaErrors(cudaGraphicsGLRegisterImage(&cudaTexResource, texture.id, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard));
+
+        // --- Allocations (SOLO UNA VEZ) ---
+        Light hLight(vec3(1.0, 1.0, 1.0), false, normalize(vec3(0.75, -1.0, 0.3)), 0.9f, 0.6f);
+        checkCudaErrors(cudaMalloc(&dLights, sizeof(Light) * N_LIGHTS));
+        checkCudaErrors(cudaMemcpy(dLights, &hLight, sizeof(Light), cudaMemcpyHostToDevice));
+
+        // ** AQUÍ ESTA LA CLAVE **
+        // Reservamos el buffer de píxeles UNA VEZ. No en el bucle.
+        checkCudaErrors(cudaMalloc(&d_pixelBuffer, WIDTH * HEIGHT * sizeof(uchar4)));
+
+        checkCudaErrors(cudaMalloc(&deviceArgs, sizeof(Args)));        
+    }
+
+    __host__
+    void processViewport() {
 
         if(IsKeyDown(KEY_R)) {
             eye = vec3(.0, .0, -1.5);
@@ -239,15 +223,32 @@ int main()
         // Previene que se acumulen 1000 frames en la cola.
         checkCudaErrors(cudaDeviceSynchronize());
 
-        // --- Draw ---
+    }
+
+    __host__
+    void beginRender() {
         BeginDrawing();
             ClearBackground(DARKGRAY);
             DrawTexturePro(texture, {0, 0, WIDTH, HEIGHT}, viewRect, {0, 0} , 0, WHITE);
-            DRAW_WINDOW(fpsWindow, "FPS", drawFPSWindow, localArgs)
-            updateArgs(localArgs);
+    }
+
+    __host__
+    void endRender() {
         EndDrawing();
         checkCudaErrors(cudaMemcpy(deviceArgs, &localArgs, sizeof(Args), cudaMemcpyHostToDevice));
     }
 
-    return 0;
-}
+    __host__
+    ~Context() {
+    // --- Cleanup ---
+        checkCudaErrors(cudaFree(deviceArgs));
+        checkCudaErrors(cudaFree(d_pixelBuffer)); // Liberamos el buffer al final
+        checkCudaErrors(cudaFree(dLights));
+        checkCudaErrors(cudaGraphicsUnregisterResource(cudaTexResource));
+        glDeleteTextures(1, &texture.id);
+        CloseWindow();
+    }
+
+};
+
+#endif

@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
-#include "consts.cuh"
+#include <consts.cuh>
 
 __device__
 uint hash(int x, uint seed) {

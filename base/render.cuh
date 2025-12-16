@@ -1,15 +1,15 @@
 #ifndef _RENDER_CUH
 #define _RENDER_CUH
 
-#include "hit.cuh"
-#include "light.cuh"
-#include "consts.cuh"
-#include "transform.cuh"
+#include <hit.cuh>
+#include <light.cuh>
+#include <consts.cuh>
+#include <transform.cuh>
 
-#include "args.cuh"
-#include "hit.cuh"
-#include "scene.cuh"
-#include "materials.cuh"
+#include <args.cuh>
+#include <hit.cuh>
+#include <scene.cuh>
+#include <materials.cuh>
 
 // Raymarching loop
 __device__

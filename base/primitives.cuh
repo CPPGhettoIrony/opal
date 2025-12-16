@@ -6,9 +6,9 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
-#include "materials.cuh"
-#include "transform.cuh"
-#include "consts.cuh"
+#include <materials.cuh>
+#include <transform.cuh>
+#include <consts.cuh>
 
 /* - - - - - -  PRIMITIVES - - - - - - */
 

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <raylib.h>
 
-#include "raygui.h"
+#include <raygui.h>
 
 struct Args;
 

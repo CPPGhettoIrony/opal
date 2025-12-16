@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/base",      // Cambiar esto
+                                                // y esto
+                "/usr/include"                  //
+            ]
+            // ... resto de la configuración
+        }
+    ],
+    "version": 4
+}

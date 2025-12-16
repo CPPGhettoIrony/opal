@@ -4,9 +4,9 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
-#include "uv.cuh"
-#include "hit.cuh"
-#include "primitives.cuh"
+#include <uv.cuh>
+#include <hit.cuh>
+#include <primitives.cuh>
 
 __device__
 float sphereWrapper(vec3 p, Args a) {

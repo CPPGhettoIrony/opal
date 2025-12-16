@@ -1,11 +1,11 @@
 #ifndef _MATERIALS_CUH
 #define _MATERIALS_CUH
 
-#include "hit.cuh"
-#include "args.cuh"
-#include "bump.cuh"
-#include "uv.cuh"
-#include "consts.cuh"
+#include <hit.cuh>
+#include <args.cuh>
+#include <bump.cuh>
+#include <uv.cuh>
+#include <consts.cuh>
 
 /* - - - - - -  MATERIALS - - - - - - */
 

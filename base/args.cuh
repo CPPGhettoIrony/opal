@@ -1,7 +1,7 @@
 #ifndef _ARGS_CUH
 #define _ARGS_CUH
 
-#include "gui.cuh"
+#include <gui.cuh>
 
 // Arguments for scene parameters
 struct Args {
