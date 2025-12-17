@@ -82,7 +82,7 @@ float f_bump(vec2 uv) {
 __device__
 Hit floor(Hit h, Args a) {
 
-    float d = f_bump(h.uv);
+    float d = f_bump(h.uv * 20.f);
 
     h.col = (d>0.)? vec3(1., 1., 0) : vec3(0.,0.,1.);
     h.lco = h.col * vec3(0.3);
@@ -102,10 +102,11 @@ Hit getMaterial(Hit hit, vec3 norm, uint matID, Args args) {
 
     hit.matID = matID;
 
-    vec3 surfacePosition = transpose(hit.rfr) * modv(hit.pos - hit.rfp, 1., 0.);
+    vec3 surfacePosition = applyTransform(hit.pos - norm * hit.d, hit.rfp, hit.rfr);
+    vec3 localNorm = transpose(hit.rfr) * norm;
 
-    vec3 n = pow(abs(norm), vec3(8.0));
-    n /= max(dot(norm, vec3(1.0)), EPSILON);
+    vec3 n = pow(abs(localNorm), vec3(8.0));
+    n /= max(dot(localNorm, vec3(1.0)), EPSILON);
 
     hit.un = norm;
     hit.normal = norm;

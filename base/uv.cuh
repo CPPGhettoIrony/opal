@@ -28,10 +28,11 @@ vec3 modv(vec3 v, float mx, float offset) {
 \
     vec3 norm = normalize(vec3(h1 - h2, h3 - h4, h5 - h6));\
 \
-    vec3 surfacePosition = modv(p - norm * f(p, a), 1., 0.);\
+    vec3 surfacePosition = applyTransform(hit.pos - norm * hit.d, hit.rfp, hit.rfr); \
+    vec3 localNorm = transpose(hit.rfr) * norm; \
 \
-    vec3 v = pow(abs(norm), vec3(8.0));\
-    v /= max(dot(norm, vec3(1.0)), EPSILON);\
+    vec3 n = pow(abs(localNorm), vec3(8.0));\
+    n /= max(dot(localNorm, vec3(1.0)), EPSILON);\
 \
     h.un = norm;\
 \

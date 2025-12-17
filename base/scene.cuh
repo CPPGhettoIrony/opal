@@ -41,14 +41,12 @@ Hit scene(vec3 p, vec3 n, Args args){
     // float v = fur(q); // Se utilizan estas coordenadas nuevas
     // Hit fur = toHit(v, p, vec3(.0), mat3(1.), n, 5u, args);
     // return join(fur, sphere(p, vec3(0., 0.0, 0.0), 0.4, n, 1u, args));
-    
-    Hit b = sphere(p, vec3(-0.15, -0.15, 0), 0.2, n, 2u, args);
-    Hit c = sphere(p, vec3(0.15,  -0.15, 0), 0.2, n, 1u, args);
-    Hit a = sphere(p, vec3(0,      0.15, 0), 0.2, n, 3u, args);
 
     float smooth = sin(args.t) * 0.25 + 0.3;
 
-    return join(a, join(b, c, smooth), smooth);
+    Hit ret = torus(p, args.pos, args.rot, 0.2, 0.09, n, 1u, args);
+
+    return ret;
 }
 
 #endif
