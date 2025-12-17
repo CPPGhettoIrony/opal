@@ -1,6 +1,8 @@
 #ifndef _UV_CUH
 #define _UV_CUH
 
+#include <hit.cuh>
+
 #include <glm/glm.hpp>
 using namespace glm;
 
@@ -15,7 +17,30 @@ vec3 modv(vec3 v, float mx, float offset) {
     return vec3(mod(v.x + offset, mx), mod(v.y + offset, mx), mod(v.z + offset, mx));
 }
 
-#define getUVAndNormal(h, p, pos, a, f) {\
+__device__
+Hit getUV(Hit hit, vec3 norm, uint matID) {
+
+    hit.matID = matID;
+
+    vec3 surfacePosition = applyTransform(hit.pos - norm * hit.d, hit.rfp, hit.rfr);
+    vec3 localNorm = transpose(hit.rfr) * norm;
+
+    vec3 n = pow(abs(localNorm), vec3(8.0));
+    n /= max(dot(localNorm, vec3(1.0)), EPSILON);
+
+    hit.un = norm;
+    hit.normal = norm;
+
+    vec2 uvX(surfacePosition.y, surfacePosition.z);
+    vec2 uvY(surfacePosition.x, surfacePosition.z);
+    vec2 uvZ(surfacePosition.x, surfacePosition.y);
+
+    hit.uv = averagev2(n, uvX, uvY, uvZ);
+
+    return hit;
+}
+
+#define getUVAndNormal(hit, p, a, f) {\
 \
     vec2 e(EPSILON, 0.f);\
 \
@@ -34,13 +59,13 @@ vec3 modv(vec3 v, float mx, float offset) {
     vec3 n = pow(abs(localNorm), vec3(8.0));\
     n /= max(dot(localNorm, vec3(1.0)), EPSILON);\
 \
-    h.un = norm;\
+    hit.un = norm;\
 \
     vec2 uvX(surfacePosition.y, surfacePosition.z);\
     vec2 uvY(surfacePosition.x, surfacePosition.z);\
     vec2 uvZ(surfacePosition.x, surfacePosition.y);\
 \
-    h.uv = averagev2(n, uvX, uvY, uvZ);\
+    hit.uv = averagev2(n, uvX, uvY, uvZ);\
 }
 
 #endif
