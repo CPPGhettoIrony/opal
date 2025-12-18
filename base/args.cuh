@@ -1,9 +1,7 @@
 #ifndef _ARGS_CUH
 #define _ARGS_CUH
 
-#include <glm/glm.hpp>
-using namespace glm;
-
+#include <transform.cuh>
 #include <gui.cuh>
 
 // Arguments for scene parameters
