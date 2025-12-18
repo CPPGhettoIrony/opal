@@ -7,6 +7,7 @@ using namespace glm;
 #include <uv.cuh>
 #include <hit.cuh>
 #include <primitives.cuh>
+#include <materials.cuh>
 
 __device__
 float capsuleWrapper(vec3 p, Args a) {
