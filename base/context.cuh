@@ -8,6 +8,7 @@
 #include <cstdio>
 
 #include <render.cuh>
+#include <lights.cuh>
 
 #define BSIZE 16
 
@@ -117,16 +118,13 @@ struct Context {
         // --- Registrar para escritura estándar ---
         checkCudaErrors(cudaGraphicsGLRegisterImage(&cudaTexResource, texture.id, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard));
 
-        // --- Allocations (SOLO UNA VEZ) ---
-        Light hLight(vec3(1.0, 1.0, 1.0), false, normalize(vec3(0.75, -1.0, 0.3)), 0.9f, 0.6f);
+        checkCudaErrors(cudaMalloc(&deviceArgs, sizeof(Args)));  
         checkCudaErrors(cudaMalloc(&dLights, sizeof(Light) * N_LIGHTS));
-        checkCudaErrors(cudaMemcpy(dLights, &hLight, sizeof(Light), cudaMemcpyHostToDevice));
+        initLights<<<1, 1>>>(dLights);
 
         // ** AQUÍ ESTA LA CLAVE **
         // Reservamos el buffer de píxeles UNA VEZ. No en el bucle.
-        checkCudaErrors(cudaMalloc(&d_pixelBuffer, WIDTH * HEIGHT * sizeof(uchar4)));
-
-        checkCudaErrors(cudaMalloc(&deviceArgs, sizeof(Args)));        
+        checkCudaErrors(cudaMalloc(&d_pixelBuffer, WIDTH * HEIGHT * sizeof(uchar4)));      
     }
 
     __host__
@@ -201,6 +199,8 @@ struct Context {
             tgt.y -= length(fwx);
         }
 
+        updateLights<<<1,1>>>(dLights, deviceArgs);
+
         // 1. Ejecutar Kernel sobre el buffer persistente (d_pixelBuffer)
         // Esto es pura memoria de GPU, rapidísimo.
         renderKernel<<<grid, block>>>(d_pixelBuffer, WIDTH, HEIGHT, eye, c_rot, dLights, deviceArgs);
@@ -235,8 +235,12 @@ struct Context {
     __host__
     void beginRender() {
         BeginDrawing();
-            ClearBackground(DARKGRAY);
-            DrawTexturePro(texture, {0, 0, WIDTH, HEIGHT}, viewRect, {0, 0} , 0, WHITE);
+        ClearBackground(DARKGRAY);
+    }
+
+    __host__ 
+    void renderViewport() {
+        DrawTexturePro(texture, {0, 0, WIDTH, HEIGHT}, viewRect, {0, 0} , 0, WHITE);
     }
 
     __host__

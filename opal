@@ -90,6 +90,7 @@ REQUIRED_FILES = [
     "args.cuh",
     "scene.cuh",
     "materials.cuh",
+    "lights.cuh",
     "makefile",
 ]
 

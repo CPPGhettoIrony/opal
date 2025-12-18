@@ -15,6 +15,7 @@ int main() {
     while (RUNNING) {
         context.processViewport();
         context.beginRender();
+            context.renderViewport();
             DRAW_WINDOW(fpsWindow, "FPS", drawFPSWindow, context.localArgs)
         context.endRender();
     }
