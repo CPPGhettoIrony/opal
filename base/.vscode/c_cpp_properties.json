@@ -3,11 +3,8 @@
         {
             "name": "Linux",
             "includePath": [
-                "${workspaceFolder}/**",      // Cambiar esto
-                                                // y esto
-                "/usr/include"                  //
+                "${workspaceFolder}/**"
             ]
-            // ... resto de la configuración
         }
     ],
     "version": 4

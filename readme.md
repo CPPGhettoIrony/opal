@@ -5,3 +5,5 @@ otherwise, if you want the raymarcher to run and your desktop isnt rendered with
 
 to change width and height of the window:
     DEF="-DWIDTH=x -DHEIGHT=y"
+
+You can now use the opal script to automatically create and manage projects without editing the source code

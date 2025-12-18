@@ -3,7 +3,7 @@ FORMAT = cu
 
 DEF?=
 
-INCLUDE = -I. #cambiar esto en el futuro
+INCLUDE = -I. -I${SDF_SDK}/base 
 CXXFLAGS = -O3 -use_fast_math -std=c++17 -arch=sm_75 -lineinfo -diag-suppress 20012 $(DEF)
 LDFLAGS = -lGL -lGLEW -ldl -lm -lpthread -lrt -lX11 -lcudart -lraylib
 
