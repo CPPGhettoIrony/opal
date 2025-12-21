@@ -2,14 +2,34 @@
 #define _GUI_CUH
 
 #include <stdlib.h>
-#include <raylib.h>
+#include <cstring>
 
+#include <raylib.h>
 #include <raygui.h>
 
 struct Args;
 
 // Original code : https://github.com/raysan5/raygui/blob/master/examples/floating_window/floating_window.c 
 // Much thankies!!
+
+
+#define ADD_ELEMENT(f, position, width, height, ...) \
+f(Rectangle{position.x + 15, position.y, width - 30, height}, __VA_ARGS__); \
+position.y += height + 15;
+
+#define ADD_SLIDER(position, width, min, max, f) \
+{\
+    static char text[32];\
+    sprintf(text, "%f", f);\
+    float w = MeasureText(text, 10); \
+    GuiLabel(Rectangle{position.x + 20 + width, position.y, w, 15}, text);\
+    ADD_ELEMENT(GuiSlider, position, width, 15, #min, #max, &f, min, max)\
+} 
+
+#define ADD_VEC3_SLIDER(position, width, min, max, v) \
+ADD_SLIDER(position, width, min, max, v.x) \
+ADD_SLIDER(position, width, min, max, v.y) \
+ADD_SLIDER(position, width, min, max, v.z)
 
 #define DECLARE_WINDOW(name, x, y, w, h)\
 static Vector2 window_##name##_position = {x, y};\
@@ -115,7 +135,9 @@ void GuiWindowFloating(Args& args, Vector2 *position, Vector2 *size, bool *minim
                 BeginScissorMode(scissor.x, scissor.y, scissor.width, scissor.height);
             }
 
-            draw_content(*position, *scroll, args);
+            Vector2 p = *position;
+            p.y += RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT + 10;
+            draw_content(p, *scroll, args);
 
             if(require_scissor) {
                 EndScissorMode();

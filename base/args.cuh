@@ -12,27 +12,22 @@ struct Args {
     mat3 rot;
 };
 
-DECLARE_WINDOW(window, 10, 10, 220, 400)
+#define WINDOW_WIDTH 220
+
+DECLARE_WINDOW(window, 10, 10, WINDOW_WIDTH + 30, 400)
 
 static void drawWindow(Vector2 position, Vector2 size, Args& a) {
 
     static Color c{255, 0, 0, 0}, l{255, 255, 255,0};
-    static vec3  rot(0.f), pos(0.f);
+    static vec3  rot(0.f);
 
-    GuiColorPicker(Rectangle{position.x + 10, position.y + 45, 180, 40}, "Color", &c);
+    ADD_ELEMENT(GuiColorPicker, position, WINDOW_WIDTH, 100, "Color", &c);
+    ADD_ELEMENT(GuiColorPicker, position, WINDOW_WIDTH, 100, "Color", &l);
 
-    GuiSlider(Rectangle{position.x + 15, position.y + 100, 180, 10}, "0", "3.14", &rot.x, 0, 3.14);
-    GuiSlider(Rectangle{position.x + 15, position.y + 115, 180, 10}, "0", "3.14", &rot.y, 0, 3.14);
-    GuiSlider(Rectangle{position.x + 15, position.y + 130, 180, 10}, "0", "3.14", &rot.z, 0, 3.14);
-
-    GuiSlider(Rectangle{position.x + 15, position.y + 145, 180, 10}, "-1", "1", &pos.x, -1, 1);
-    GuiSlider(Rectangle{position.x + 15, position.y + 160, 180, 10}, "-1", "1", &pos.y, -1, 1);
-    GuiSlider(Rectangle{position.x + 15, position.y + 175, 180, 10}, "-1", "1", &pos.z, -1, 1);
-
-    GuiColorPicker(Rectangle{position.x + 10, position.y + 200, 180, 40}, "Color", &l);
+    ADD_VEC3_SLIDER(position, WINDOW_WIDTH, -1, 1, a.pos);
+    ADD_VEC3_SLIDER(position, WINDOW_WIDTH, -3.14, 3.14, rot);
 
     a.rot = rotationFromEuler(rot);
-    a.pos = pos;
     
     a.col.x = float(c.r) / 255.f;
     a.col.y = float(c.g) / 255.f;
