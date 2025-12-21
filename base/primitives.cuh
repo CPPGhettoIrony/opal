@@ -28,6 +28,18 @@ __device__
 float sphere(vec3 p, vec3 pos, float r) {
     return length(p - pos) - r;
 }
+
+__device__
+Hit sphere(vec3 p, vec3 pos, mat3 rot, float r, vec3 n, uint matID, Args a) {
+    Hit ret;
+    ret.d       = sphere(p , pos, r);
+    ret.pos     = p;
+    ret.rfp     = pos; 
+    ret.rfr     = rot;
+    ret = getMaterial(ret, n, matID, a); 
+    return ret;
+}
+
 __device__
 Hit sphere(vec3 p, vec3 pos, float r, vec3 n, uint matID, Args a) {
     Hit ret;

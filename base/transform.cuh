@@ -78,17 +78,6 @@ __host__ vec3 rotate_point_zy(float angleInRads, vec3 p, vec3 o)
   return p;
 }
 
-#define TRANSFORM_HIT(p, hit, _pos, _rot, ...)\
-{\
-    vec3 tmp = p;\
-    p = applyTransform(p, _pos, _rot);\
-    __VA_ARGS__\
-    p = tmp;\
-    hit.pos = p;\
-    hit.rfp += _pos;\
-    hit.rfr += _rot;\
-}
-
 
 
 #endif
