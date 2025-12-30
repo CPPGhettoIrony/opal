@@ -16,6 +16,7 @@ struct Hit {
 
     vec3    rfp;        // object reference pose        for mapping
     mat3    rfr;        // object reference rotation    for mapping
+    float   rfs = 1;    // object reference scale       for mapping
 
     vec3    normal;     // Normal of the hit surface
     vec3    un;         // Unshaded normal

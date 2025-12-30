@@ -9,6 +9,9 @@ using namespace glm;
 #include <primitives.cuh>
 #include <materials.cuh>
 
+#include <args.cuh>
+#include <fur.cuh>
+
 __device__
 float capsuleWrapper(vec3 p, Args a) {
     return capsule(p, a.pos, a.rot, 0.2, 0.4);

@@ -17,6 +17,16 @@ struct Args;
 f(Rectangle{position.x + 15, position.y, width - 30, height}, __VA_ARGS__); \
 position.y += height + 15;
 
+#define ADD_LABEL(position, text) \
+{\
+    float w =  MeasureText(text, 10);\
+    ADD_ELEMENT(GuiLabel, position, w, 10.f, text)\
+}
+
+#define ADD_SEPARATOR(position, width) \
+DrawLine((int)position.x, (int)position.y, (int)(position.x + width), (int)position.y, DARKGRAY);\
+position.y += 5;
+
 #define ADD_SLIDER(position, width, min, max, f) \
 {\
     static char text[32];\
@@ -25,6 +35,10 @@ position.y += height + 15;
     GuiLabel(Rectangle{position.x + 20 + width, position.y, w, 15}, text);\
     ADD_ELEMENT(GuiSlider, position, width, 15, #min, #max, &f, min, max)\
 } 
+
+#define ADD_VEC2_SLIDER(position, width, min, max, v) \
+ADD_SLIDER(position, width, min, max, v.x) \
+ADD_SLIDER(position, width, min, max, v.y)
 
 #define ADD_VEC3_SLIDER(position, width, min, max, v) \
 ADD_SLIDER(position, width, min, max, v.x) \
