@@ -18,25 +18,52 @@ float eyeSocket(vec3 p, vec3 dim, eyeParams params) {
 
     return join(intersect(base_lower, cut_lower), intersect(base_upper, cut_upper));
 }
- 
+
+__device__
+float eyeLine(vec3 p, vec3 dim, float rad, float thick, float length, float offset, eyeParams params) {
+
+    float z = dim.z*(1 + length);
+
+    vec3    eyeline_dim_A(dim.x * rad, dim.y * rad, z),
+            eyeline_dim_B(dim.x * rad * thick, dim.y * rad * thick, z);
+
+    vec3 q = p - vec3(0., 0., offset);
+
+    float   eyeline = eyeSocket(q, eyeline_dim_B, params);
+            eyeline = subtract(
+                        eyeSocket(q, eyeline_dim_A, params),
+                        eyeline, 0.01);
+            eyeline = subtract(eyeline, q.z);
+
+    return eyeline;
+
+}
+
+__device__ 
+Hit eyeLine(vec3 p, vec3 pos, mat3 rot, 
+    vec3 dim, float rad, float thick, float length, float offset, eyeParams params,
+    vec3 n, uint mat, Args args) 
+{
+    float eyeline   = eyeLine(applyTransform(p, pos, rot), dim, rad, thick, length, offset, params);
+    return toHit(eyeline, p, pos, rot, n, mat, args);
+}
+
 __device__
 Hit eye(vec3 p, Hit input, vec3 pos, mat3 rot, 
     vec3 eye_dim, vec2 iris_dim, 
     eyeParams params,
-    vec3 n, uint eye_mat, uint mascara_mat, Args args) 
+    vec3 n, uint eye_mat, uint skin_mat, Args args) 
 {
 
-    vec3 dim = eye_dim;
+    vec3 eye_pos = pos - rot * vec3(0., 0., - eye_dim.z - 0.01);
 
-    vec3 eye_pos = pos - rot * vec3(0., 0., - dim.z - 0.01);
+    float socket    = eyeSocket(applyTransform(p, pos, rot), eye_dim, params);
+    float eye       = ellipsoid(applyTransform(p, eye_pos, rot), eye_dim);
 
-    float socket    = eyeSocket(applyTransform(p, pos, rot), dim, params);
-    float eye       = ellipsoid(applyTransform(p, eye_pos, rot), dim);
+    Hit socket_hit  = toHit(socket, p, pos, rot, n, skin_mat, args);
+    Hit eye_hit     = toHit(eye, p, pos, rot, min(eye_dim.x, eye_dim.y)*2.f, n, eye_mat, args);
 
-    Hit socket_hit  = toHit(socket, p, pos, rot, n, mascara_mat, args);
-    Hit eye_hit     = toHit(eye, p, pos, rot, min(dim.x, dim.y)*2.f, n, eye_mat, args);
-
-    Hit output      = subtract(input, socket_hit, 0.01 * length(dim));
+    Hit output      = subtract(input, socket_hit, 0.01 * length(eye_dim));
 
     return join(output, eye_hit);
 

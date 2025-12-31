@@ -89,8 +89,22 @@ Hit eye_material(Hit h, Args a, eyeParams p){
         return eyeMat(h, a);
 } 
 
+__device__
+Hit mascMat(Hit h, Args a) {
+
+    h.col = vec3(0.);
+    h.ref = 0.05;
+    h.shn = 128;
+    h.spc = 2;
+    h.lth = 0;
+    h.trs = 0;
+
+    return h;
+}
+
 #define EYE     1
 #define SKIN    3
+#define MASC    4
 
 __device__
 Hit getMaterial(Hit hit, vec3 norm, uint matID, Args args) {
@@ -100,6 +114,7 @@ Hit getMaterial(Hit hit, vec3 norm, uint matID, Args args) {
     switch(matID) {
         case EYE:       return eye_material(hit, args, args.eye1);
         case SKIN:      return skinMat(hit, args);
+        case MASC:      return mascMat(hit, args);
         default:        return def(hit);   
     }
     

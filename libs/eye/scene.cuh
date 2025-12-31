@@ -14,7 +14,11 @@ Hit scene(vec3 p, vec3 n, Args args){
     float head      = sphere(p, vec3(0., 0., radius), radius);
     Hit head_hit    = toHit(head, p, vec3(.0, .0, radius), mat3(1.), n, SKIN, args);
 
-    return eye(p, head_hit, args.eye_pos, args.eye_rot, args.eye_dim, vec2(1.f), args.eye1, n, EYE, SKIN, args);
+    head_hit    = eye(p, head_hit, args.eye_pos, args.eye_rot, args.eye_dim, vec2(1.f), args.eye1, n, EYE, SKIN, args);
+    Hit eyeline_hit = eyeLine(p, args.eye_pos, args.eye_rot, args.eye_dim, args.eyeline_rad, args.eyeline_len, args.eyeline_thk, 
+        args.eyeline_off, args.eye1, n, MASC, args);
+
+    return join(head_hit, eyeline_hit);
 
 }
 

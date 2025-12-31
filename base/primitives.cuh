@@ -373,7 +373,7 @@ float smin(float d1, float d2, float k, float& h)
 }
 __device__
 float join(float a, float b) {
-    return (a < b) ? a : b;
+    return min(a, b);
 }
 __device__
 float join(float a, float b, float k) {
@@ -406,7 +406,7 @@ float smax(float d1, float d2, float k, float &h) {
 }
 __device__
 float subtract(float a, float b) {
-    return (a > -b) ? a : b;
+    return max(a, -b);
 }
 __device__
 float subtract(float a, float b, float k) {

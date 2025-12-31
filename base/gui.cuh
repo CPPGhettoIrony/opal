@@ -136,26 +136,22 @@ void GuiWindowFloating(Args& args, Vector2 *position, Vector2 *size, bool *minim
 
         // scissor and draw content within a scroll panel
         if(draw_content != NULL) {
+
             Rectangle scissor = { 0 };
+            
             GuiScrollPanel((Rectangle) { position->x, position->y + RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT, size->x, size->y - RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT },
                                          NULL,
                                          (Rectangle) { position->x, position->y, content_size.x, content_size.y },
                                          scroll,
                                          &scissor);
 
-            bool require_scissor = size->x < content_size.x || size->y < content_size.y;
-
-            if(require_scissor) {
-                BeginScissorMode(scissor.x, scissor.y, scissor.width, scissor.height);
-            }
+            BeginScissorMode(scissor.x, scissor.y, scissor.width, scissor.height);
 
             Vector2 p = *position;
             p.y += RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT + 10;
             draw_content(p, *scroll, args);
 
-            if(require_scissor) {
-                EndScissorMode();
-            }
+            EndScissorMode();
         }
 
         // draw the resize button/icon
