@@ -50,8 +50,7 @@ Hit eyeLine(vec3 p, vec3 pos, mat3 rot,
 
 __device__
 Hit eye(vec3 p, Hit input, vec3 pos, mat3 rot, 
-    vec3 eye_dim, vec2 iris_dim, 
-    eyeParams params,
+    vec3 eye_dim, eyeParams params,
     vec3 n, uint eye_mat, uint skin_mat, Args args) 
 {
 
@@ -69,5 +68,24 @@ Hit eye(vec3 p, Hit input, vec3 pos, mat3 rot,
 
 }
 
+__device__
+Hit eyes(vec3 p, Hit input, vec3 pos, mat3 rot, 
+    vec3 eye_dim, 
+    float separation, float angle,
+    eyeParams params_A, eyeParams params_B,
+    vec3 n, uint eye_mat_A, uint eye_mat_B, uint skin_mat, Args args) 
+{
+
+    input = eye(p, input, pos + rot * vec3(- separation, 0, 0), 
+                    rot * rotationFromEuler(vec3(0., -angle, .0)), 
+                    eye_dim, params_A, n, eye_mat_A, skin_mat, args);
+
+    input = eye(p, input, pos + rot * vec3(+ separation, 0, 0), 
+                    rot * rotationFromEuler(vec3(0., angle, .0)), 
+                    eye_dim, params_B, n, eye_mat_B, skin_mat, args);
+
+    return input;
+
+}
 
 #endif

@@ -9,14 +9,18 @@
 // Arguments for scene parameters
 struct Args {
     eyeParams eye1;
+
     vec3 eye_dim    = vec3(0.1, 0.1, 0.05);
     vec3 eye_pos    = vec3(.0);
     mat3 eye_rot    = mat3(1.f);
     
     float eyeline_len = 1.f;
-    float eyeline_rad = 1.f;
+    float eyeline_rad = 0.78;
     float eyeline_thk = 0.9;
-    float eyeline_off = 0;
+    float eyeline_off = 0.017;
+
+    float eyes_separation = 0;
+    float eyes_angle      = 0.1;
 };
 
 #define WINDOW_WIDTH 220
@@ -28,8 +32,17 @@ static void drawWindow(Vector2 position, Vector2 scroll, Args& a) {
 
     eyeControlGUI(position, scroll, WINDOW_WIDTH, a.eye1);
 
+    ADD_LABEL(position, scroll, "Eye Spacing Controls")
+    ADD_SEPARATOR(position, scroll, WINDOW_WIDTH);
+
+    ADD_LABEL(position, scroll, "\t Eyes Separation")
+    ADD_SLIDER(position, scroll, WINDOW_WIDTH, 0, 1, a.eyes_separation);
+    ADD_LABEL(position, scroll, "\t Eyes Angle")
+    ADD_SLIDER(position, scroll, WINDOW_WIDTH, 0, 3.14, a.eyes_angle);
+
     ADD_LABEL(position, scroll, "Other Properties")
     ADD_SEPARATOR(position, scroll, WINDOW_WIDTH)
+
     ADD_LABEL(position, scroll, "\t Dimensions")
     ADD_VEC3_SLIDER(position, scroll, WINDOW_WIDTH, 0.01, 0.15, a.eye_dim)
     ADD_LABEL(position, scroll, "\t Position")
@@ -43,7 +56,7 @@ static void drawWindow(Vector2 position, Vector2 scroll, Args& a) {
     ADD_LABEL(position, scroll, "\t Eyeline Radius")
     ADD_SLIDER(position, scroll, WINDOW_WIDTH, 0, 1, a.eyeline_rad)
     ADD_LABEL(position, scroll, "\t Eyeline Offset")
-    ADD_SLIDER(position, scroll, WINDOW_WIDTH, -1, 1, a.eyeline_off)    
+    ADD_SLIDER(position, scroll, WINDOW_WIDTH, -0.1, 0.1, a.eyeline_off)    
 
     a.eye_rot = rotationFromEuler(rot);
 }
