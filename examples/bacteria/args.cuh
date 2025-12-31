@@ -14,12 +14,12 @@ struct Args {
 
 DECLARE_WINDOW(window, 10, 10, WINDOW_WIDTH + 30, 400)
 
-static void drawWindow(Vector2 position, Vector2 size, Args& a) {
+static void drawWindow(Vector2 position, Vector2 scroll, Args& a) {
 
     static vec3  rot(0.f);
 
-    ADD_VEC3_SLIDER(position, WINDOW_WIDTH, -1, 1, a.pos);
-    ADD_VEC3_SLIDER(position, WINDOW_WIDTH, -3.14, 3.14, rot);
+    ADD_VEC3_SLIDER(position, scroll, WINDOW_WIDTH, -1, 1, a.pos);
+    ADD_VEC3_SLIDER(position, scroll, WINDOW_WIDTH, -3.14, 3.14, rot);
 
     a.rot = rotationFromEuler(rot);
 }

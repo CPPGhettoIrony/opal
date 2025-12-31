@@ -13,37 +13,37 @@ struct Args;
 // Much thankies!!
 
 
-#define ADD_ELEMENT(f, position, width, height, ...) \
-f(Rectangle{position.x + 15, position.y, width - 30, height}, __VA_ARGS__); \
+#define ADD_ELEMENT(f, position, scroll, width, height, ...) \
+f(Rectangle{position.x + 15 + scroll.x, position.y + scroll.y, width - 30, height}, __VA_ARGS__); \
 position.y += height + 15;
 
-#define ADD_LABEL(position, text) \
+#define ADD_LABEL(position, scroll, text) \
 {\
-    float w =  MeasureText(text, 10);\
-    ADD_ELEMENT(GuiLabel, position, w, 10.f, text)\
+    float w =  MeasureText(text, 20);\
+    ADD_ELEMENT(GuiLabel, position, scroll, w, 10.f, text)\
 }
 
-#define ADD_SEPARATOR(position, width) \
-DrawLine((int)position.x, (int)position.y, (int)(position.x + width), (int)position.y, DARKGRAY);\
+#define ADD_SEPARATOR(position, scroll, width) \
+DrawLine((int)position.x + scroll.x, (int)position.y + scroll.y, (int)(position.x + width) + scroll.x, (int)position.y + scroll.y, DARKGRAY);\
 position.y += 5;
 
-#define ADD_SLIDER(position, width, min, max, f) \
+#define ADD_SLIDER(position, scroll, width, min, max, f) \
 {\
     static char text[32];\
     sprintf(text, "%f", f);\
-    float w = MeasureText(text, 10); \
-    GuiLabel(Rectangle{position.x + 20 + width, position.y, w, 15}, text);\
-    ADD_ELEMENT(GuiSlider, position, width, 15, #min, #max, &f, min, max)\
+    float w = MeasureText(text, 20); \
+    GuiLabel(Rectangle{position.x + 20 + scroll.x + width, position.y + scroll.y, w, 15}, text);\
+    ADD_ELEMENT(GuiSlider, position, scroll, width, 15, #min, #max, &f, min, max)\
 } 
 
-#define ADD_VEC2_SLIDER(position, width, min, max, v) \
-ADD_SLIDER(position, width, min, max, v.x) \
-ADD_SLIDER(position, width, min, max, v.y)
+#define ADD_VEC2_SLIDER(position, scroll, width, min, max, v) \
+ADD_SLIDER(position, scroll, width, min, max, v.x) \
+ADD_SLIDER(position, scroll, width, min, max, v.y)
 
-#define ADD_VEC3_SLIDER(position, width, min, max, v) \
-ADD_SLIDER(position, width, min, max, v.x) \
-ADD_SLIDER(position, width, min, max, v.y) \
-ADD_SLIDER(position, width, min, max, v.z)
+#define ADD_VEC3_SLIDER(position, scroll, width, min, max, v) \
+ADD_SLIDER(position, scroll, width, min, max, v.x) \
+ADD_SLIDER(position, scroll, width, min, max, v.y) \
+ADD_SLIDER(position, scroll, width, min, max, v.z)
 
 #define DECLARE_WINDOW(name, x, y, w, h)\
 static Vector2 window_##name##_position = {x, y};\

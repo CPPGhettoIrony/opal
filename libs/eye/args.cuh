@@ -17,15 +17,15 @@ struct Args {
 #define WINDOW_WIDTH 220
 DECLARE_WINDOW(window, 10, 10, WINDOW_WIDTH + 80, 700)
 
-static void drawWindow(Vector2 position, Vector2 size, Args& a) {
+static void drawWindow(Vector2 position, Vector2 scroll, Args& a) {
 
     static vec3 rot(.0);
 
-    eyeControlGUI(position, WINDOW_WIDTH, a.eye1);
+    eyeControlGUI(position, scroll, WINDOW_WIDTH, a.eye1);
 
-    ADD_VEC3_SLIDER(position, WINDOW_WIDTH, 0.01, 0.15, a.eye_dim)
-    ADD_VEC3_SLIDER(position, WINDOW_WIDTH, -0.2, 0.2, a.eye_pos)
-    ADD_VEC3_SLIDER(position, WINDOW_WIDTH, -6.28, 6.28, rot)
+    ADD_VEC3_SLIDER(position, scroll, WINDOW_WIDTH, 0.01, 0.15, a.eye_dim)
+    ADD_VEC3_SLIDER(position, scroll, WINDOW_WIDTH, -0.2, 0.2, a.eye_pos)
+    ADD_VEC3_SLIDER(position, scroll, WINDOW_WIDTH, -6.28, 6.28, rot)
 
     a.eye_rot = rotationFromEuler(rot);
 }

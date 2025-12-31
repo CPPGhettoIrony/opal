@@ -16,13 +16,13 @@ struct Args {
 
 DECLARE_WINDOW(window, 10, 10, WINDOW_WIDTH + 30, 500)
 
-static void drawWindow(Vector2 position, Vector2 size, Args& a) {
+static void drawWindow(Vector2 position, Vector2 scroll, Args& a) {
 
     static Color c{255, 0, 0, 0}, l{255, 255, 255,0};
     static vec3  rot(0.f);
 
-    ADD_ELEMENT(GuiColorPicker, position, WINDOW_WIDTH, 100, "Color", &c);
-    ADD_ELEMENT(GuiColorPicker, position, WINDOW_WIDTH, 100, "Color", &l);
+    ADD_ELEMENT(GuiColorPicker, position, scroll, WINDOW_WIDTH, 100, "Color", &c);
+    ADD_ELEMENT(GuiColorPicker, position, scroll, WINDOW_WIDTH, 100, "Color", &l);
 
     ADD_VEC3_SLIDER(position, WINDOW_WIDTH, -1, 1, a.pos);
     ADD_VEC3_SLIDER(position, WINDOW_WIDTH, -3.14, 3.14, rot);
