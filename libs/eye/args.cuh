@@ -10,17 +10,17 @@
 struct Args {
     eyeParams eye1;
 
-    vec3 eye_dim    = vec3(0.1, 0.1, 0.05);
-    vec3 eye_pos    = vec3(.0);
+    vec3 eye_dim    = vec3(0.08, 0.073, 0.028);
+    vec3 eye_pos    = vec3(.0, .0, 0.018);
     mat3 eye_rot    = mat3(1.f);
     
-    float eyeline_len = 1.f;
-    float eyeline_rad = 0.78;
-    float eyeline_thk = 0.9;
-    float eyeline_off = 0.017;
+    float eyeline_len = 0.022f;
+    float eyeline_rad = 0.79;
+    float eyeline_thk = 0.94;
+    float eyeline_off = 0.0126;
 
-    float eyes_separation = 0;
-    float eyes_angle      = 0.1;
+    float eyes_separation = 0.097;
+    float eyes_angle      = 0.469;
 };
 
 #define WINDOW_WIDTH 220

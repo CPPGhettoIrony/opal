@@ -9,7 +9,7 @@ using namespace glm;
 struct eyeParams {
     float   uppercut        = 1,
             lowercut        = 1,
-            irisRadius      = 0.5,
+            irisRadius      = 0.2,
             pupilRadius     = 0.25;
     vec2    pupilPosition   = vec2(0.f),
             pupilDim        = vec2(1.f);

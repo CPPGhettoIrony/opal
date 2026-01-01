@@ -88,4 +88,22 @@ Hit eyes(vec3 p, Hit input, vec3 pos, mat3 rot,
 
 }
 
+__device__ 
+Hit eyeLines(vec3 p, vec3 pos, mat3 rot, 
+    vec3 dim, 
+    float separation, float angle,
+    float rad, float thick, float length, float offset, 
+    eyeParams params_A, eyeParams params_B,
+    vec3 n, uint mat, Args args) 
+{
+    float eyeline = eyeLine(applyTransform(p, pos + rot * vec3(-separation, 0, 0), rot * rotationFromEuler(vec3(0., -angle, .0))), 
+                              dim, rad, thick, length, offset, params_A);
+
+    eyeline = join(eyeline, eyeLine(applyTransform(p, pos + rot * vec3(separation, 0, 0), rot * rotationFromEuler(vec3(0., angle, .0))), 
+                              dim, rad, thick, length, offset, params_B));
+    
+    return toHit(eyeline, p, pos, rot, n, mat, args);
+}
+
+
 #endif
