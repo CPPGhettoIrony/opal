@@ -27,7 +27,7 @@ struct Args {
 
 #define WINDOW_WIDTH 220
 
-DECLARE_WINDOW(eyeControls, 10, 10, (WINDOW_WIDTH + 50)*2, 600) {
+DECLARE_WINDOW(eyeControls, 10, 10, (WINDOW_WIDTH + 50)*2, 800) {
     CALL_GUI(dualEyeControlGUI, WINDOW_WIDTH + 50, a.eye1, a.eye2, a.eye_mode)
 }
 

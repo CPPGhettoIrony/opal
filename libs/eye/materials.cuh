@@ -102,7 +102,8 @@ Hit mascMat(Hit h, Args a) {
     return h;
 }
 
-#define EYE     1
+#define EYE_A   1
+#define EYE_B   2
 #define SKIN    3
 #define MASC    4
 
@@ -112,7 +113,8 @@ Hit getMaterial(Hit hit, vec3 norm, uint matID, Args args) {
     hit = getUV(hit, norm, matID);
 
     switch(matID) {
-        case EYE:       return eye_material(hit, args, args.eye1);
+        case EYE_A:     return eye_material(hit, args, args.eye1);
+        case EYE_B:     return eye_material(hit, args, args.eye2);
         case SKIN:      return skinMat(hit, args);
         case MASC:      return mascMat(hit, args);
         default:        return def(hit);   

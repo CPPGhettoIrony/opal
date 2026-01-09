@@ -42,6 +42,30 @@ DECLARE_GUI(eyeControlGUI, float width, eyeParams& params) {
 
 }
 
+#define EYE_SYNC                0
+#define EYE_MOSTLY_SYNC         1
+#define EYE_SEMI_INDEPENDENT    2
+#define EYE_MOSTLY_INDEPENDENT  3
+#define EYE_INDEPENDENT         4
+
+__host__ 
+void synchronizeEye(int mode, eyeParams reference, eyeParams& output) {
+    switch(mode) {
+        case EYE_SYNC:
+            output = reference;
+            break;
+        case EYE_MOSTLY_SYNC:
+            output.pupilPosition    = reference.pupilPosition;
+        case EYE_SEMI_INDEPENDENT:
+            output.irisRadius       = reference.irisRadius;
+            output.pupilRadius      = reference.pupilRadius;
+        case EYE_MOSTLY_INDEPENDENT:
+            output.pupilDim         = reference.pupilDim;
+        case EYE_INDEPENDENT:
+            break;
+    }
+}
+
 DECLARE_GUI(dualEyeControlGUI, float width, eyeParams& params_A, eyeParams& params_B, int& mode) {
 
     static bool eyeDropboxEditMode;
@@ -66,8 +90,10 @@ DECLARE_GUI(dualEyeControlGUI, float width, eyeParams& params_A, eyeParams& para
 
     ADD_LABEL("Eye Position Mode")
 
-    if (GuiDropdownBox(GET_RECTANGLE(150, 15), "Semi-Independent;Independent;Sync;Lookat", &mode, eyeDropboxEditMode))
+    if (GuiDropdownBox(GET_RECTANGLE(150, 15), "Sync;Mostly Sync;Semi Independent;Mostly Independent;Independent;", &mode, eyeDropboxEditMode))
         eyeDropboxEditMode = !eyeDropboxEditMode;
+
+    synchronizeEye(mode, params_A, params_B);
 }
 
 #endif
