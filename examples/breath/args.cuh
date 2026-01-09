@@ -15,22 +15,20 @@ struct Args {
 
 #define WINDOW_WIDTH 350
 
-DECLARE_WINDOW(window, 10, 10, WINDOW_WIDTH + 30, 550)
-
-static void drawWindow(Vector2 position, Vector2 scroll, Args& a) {
+DECLARE_WINDOW(window, 10, 10, WINDOW_WIDTH + 30, 550) {
 
     static Color c{255, 0, 0, 0}, l{255, 255, 255,0};
     static vec3  rot(0.f);
 
-    ADD_ELEMENT(GuiColorPicker, position, scroll, WINDOW_WIDTH, 100, "Color", &c);
-    ADD_ELEMENT(GuiColorPicker, position, scroll, WINDOW_WIDTH, 100, "Color", &l);
+    ADD_ELEMENT(GuiColorPicker, WINDOW_WIDTH, 100, "Color", &c);
+    ADD_ELEMENT(GuiColorPicker, WINDOW_WIDTH, 100, "Color", &l);
 
     static float f = 0.01;
 
-    ADD_SLIDER(position, scroll, WINDOW_WIDTH, 0, 0.1, f)
+    ADD_SLIDER(WINDOW_WIDTH, 0, 0.1, f)
 
-    ADD_VEC3_SLIDER(position, scroll, WINDOW_WIDTH, -1, 1, a.pos);
-    ADD_VEC3_SLIDER(position, scroll, WINDOW_WIDTH, -3.14, 3.14, rot);
+    ADD_VEC3_SLIDER(WINDOW_WIDTH, -1, 1, a.pos);
+    ADD_VEC3_SLIDER(WINDOW_WIDTH, -3.14, 3.14, rot);
 
     a.rot = rotationFromEuler(rot);
     
@@ -47,7 +45,7 @@ static void drawWindow(Vector2 position, Vector2 scroll, Args& a) {
 
 __host__
 void updateArgs(Args& a) {
-    DRAW_WINDOW(window, "Control Panel", drawWindow, a)
+    DRAW_WINDOW(window, "Control Panel", a)
 }
 
 #endif

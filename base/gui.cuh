@@ -12,50 +12,62 @@ struct Args;
 // Original code : https://github.com/raysan5/raygui/blob/master/examples/floating_window/floating_window.c 
 // Much thankies!!
 
+#define GET_RECTANGLE(width, height) \
+Rectangle{position.x + 15 + scroll.x, position.y + scroll.y, width - 30, height}
 
-#define ADD_ELEMENT(f, position, scroll, width, height, ...) \
-f(Rectangle{position.x + 15 + scroll.x, position.y + scroll.y, width - 30, height}, __VA_ARGS__); \
+#define ADD_ELEMENT(f, width, height, ...) \
+f(GET_RECTANGLE(width, height), __VA_ARGS__); \
 position.y += height + 15;
 
-#define ADD_LABEL(position, scroll, text) \
+#define ADD_LABEL(text) \
 {\
     float w =  MeasureText(text, 20);\
-    ADD_ELEMENT(GuiLabel, position, scroll, w, 10.f, text)\
+    ADD_ELEMENT(GuiLabel, w, 10.f, text)\
 }
 
-#define ADD_SEPARATOR(position, scroll, width) \
+#define ADD_SEPARATOR(width) \
 DrawLine((int)position.x + scroll.x, (int)position.y + scroll.y, (int)(position.x + width) + scroll.x, (int)position.y + scroll.y, DARKGRAY);\
 position.y += 5;
 
-#define ADD_SLIDER(position, scroll, width, min, max, f) \
+#define ADD_SLIDER(width, min, max, f) \
 {\
     static char text[32];\
     sprintf(text, "%f", f);\
     float w = MeasureText(text, 20); \
     GuiLabel(Rectangle{position.x + 20 + scroll.x + width, position.y + scroll.y, w, 15}, text);\
-    ADD_ELEMENT(GuiSlider, position, scroll, width, 15, #min, #max, &f, min, max)\
+    ADD_ELEMENT(GuiSlider, width, 15, #min, #max, &f, min, max)\
 } 
 
-#define ADD_VEC2_SLIDER(position, scroll, width, min, max, v) \
-ADD_SLIDER(position, scroll, width, min, max, v.x) \
-ADD_SLIDER(position, scroll, width, min, max, v.y)
+#define ADD_VEC2_SLIDER(width, min, max, v) \
+ADD_SLIDER(width, min, max, v.x) \
+ADD_SLIDER(width, min, max, v.y)
 
-#define ADD_VEC3_SLIDER(position, scroll, width, min, max, v) \
-ADD_SLIDER(position, scroll, width, min, max, v.x) \
-ADD_SLIDER(position, scroll, width, min, max, v.y) \
-ADD_SLIDER(position, scroll, width, min, max, v.z)
+#define ADD_VEC3_SLIDER(width, min, max, v) \
+ADD_SLIDER(width, min, max, v.x) \
+ADD_SLIDER(width, min, max, v.y) \
+ADD_SLIDER(width, min, max, v.z)
 
 #define DECLARE_WINDOW(name, x, y, w, h)\
 static Vector2 window_##name##_position = {x, y};\
-static Vector2 window_##name##_size = {w, h};\
+static Vector2 window_##name##_size = {w, 100};\
+static Vector2 window_##name##_content_size = {w, h};\
 static bool window_##name##_minimized = false;\
 static bool window_##name##_moving = false;\
 static bool window_##name##_resizing = false;\
-static Vector2 window_##name##_scroll;
+static Vector2 window_##name##_scroll;\
+static void name (Vector2 position, Vector2 scroll, Args& a)
 
-#define DRAW_WINDOW(name, title, func, args)\
+#define DRAW_WINDOW(name, title, args)\
 GuiWindowFloating(args, &window_##name##_position, &window_##name##_size, &window_##name##_minimized, &window_##name##_moving,\
-    &window_##name##_resizing, &func, window_##name##_size, &window_##name##_scroll, title);
+    &window_##name##_resizing, &name, window_##name##_content_size, &window_##name##_scroll, title);
+
+#define DECLARE_GUI(name, ...)\
+static void name(Vector2& position, Vector2 scroll, __VA_ARGS__)
+
+#define CALL_GUI(name, ...)\
+name(position, scroll, __VA_ARGS__);
+
+static void* activeWindow = nullptr;
 
 __host__
 void GuiWindowFloating(Args& args, Vector2 *position, Vector2 *size, bool *minimized, bool *moving, bool *resizing, 
@@ -149,7 +161,12 @@ void GuiWindowFloating(Args& args, Vector2 *position, Vector2 *size, bool *minim
 
             Vector2 p = *position;
             p.y += RAYGUI_WINDOWBOX_STATUSBAR_HEIGHT + 10;
-            draw_content(p, *scroll, args);
+
+            int inside = CheckCollisionPointRec(GetMousePosition(), scissor);
+
+            if(!inside) GuiLock();
+                draw_content(p, *scroll, args);
+            if(!inside) GuiUnlock();
 
             EndScissorMode();
         }

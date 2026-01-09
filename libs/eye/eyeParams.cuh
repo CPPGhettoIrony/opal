@@ -15,37 +15,59 @@ struct eyeParams {
             pupilDim        = vec2(1.f);
 };
 
-static void eyeControlGUI(Vector2& position, Vector2 scroll, float width, eyeParams& params) {
+DECLARE_GUI(eyeControlGUI, float width, eyeParams& params) {
 
-    ADD_LABEL(position, scroll, "Blink Controls")
-    ADD_SEPARATOR(position, scroll, width)
+    ADD_LABEL("Blink Controls")
+    ADD_SEPARATOR(width)
 
-    ADD_LABEL(position, scroll, "\t Upper Eyelid")
-    ADD_SLIDER(position, scroll, width, 0.01, 1, params.uppercut)
-    ADD_LABEL(position, scroll, "\t Lower Eyelid")
-    ADD_SLIDER(position, scroll, width, 0.01, 1, params.lowercut)
-    ADD_SEPARATOR(position, scroll, width)
+    ADD_LABEL("\t Upper Eyelid")
+    ADD_SLIDER(width, 0.01, 1, params.uppercut)
+    ADD_LABEL("\t Lower Eyelid")
+    ADD_SLIDER(width, 0.01, 1, params.lowercut)
+    ADD_SEPARATOR(width)
 
-    ADD_LABEL(position, scroll, "Iris Controls")
-    ADD_SEPARATOR(position, scroll, width)
+    ADD_LABEL("Iris Controls")
+    ADD_SEPARATOR(width)
 
-    ADD_LABEL(position, scroll, "\t Position")
-    ADD_VEC2_SLIDER(position, scroll, width, -1, 1, params.pupilPosition)
-    ADD_LABEL(position, scroll, "\t Iris Radius")
-    ADD_SLIDER(position, scroll, width, 0.2, 1, params.irisRadius)
-    ADD_LABEL(position, scroll, "\t Pupil Radius")
-    ADD_SLIDER(position, scroll, width, 0.2, 1, params.pupilRadius)
-    ADD_LABEL(position, scroll, "\t Pupil Dimensions")
-    ADD_VEC2_SLIDER(position, scroll, width, 0.01, 1, params.pupilDim)
+    ADD_LABEL("\t Position")
+    ADD_VEC2_SLIDER(width, -1, 1, params.pupilPosition)
+    ADD_LABEL("\t Iris Radius")
+    ADD_SLIDER(width, 0.2, 1, params.irisRadius)
+    ADD_LABEL("\t Pupil Radius")
+    ADD_SLIDER(width, 0.2, 1, params.pupilRadius)
+    ADD_LABEL("\t Pupil Dimensions")
+    ADD_VEC2_SLIDER(width, 0.01, 1, params.pupilDim)
 
-    ADD_SEPARATOR(position, scroll, width)
+    ADD_SEPARATOR(width)
 
 }
 
-static void doubleEyeControlGUI(Vector2& position, Vector2 scroll, float width, eyeParams& params) {
+DECLARE_GUI(dualEyeControlGUI, float width, eyeParams& params_A, eyeParams& params_B, int& mode) {
 
-    eyeControlGUI(position, scroll, width, params);
+    static bool eyeDropboxEditMode;
 
+    ADD_LABEL("Eye Controls")
+    ADD_SEPARATOR(width*2)
+
+    position.y += 15;
+
+    Vector2 position_B = position;
+
+    CALL_GUI(eyeControlGUI, width, params_A)
+
+    Vector2 position_C = position;
+
+    position_B.x += width;
+    position = position_B;
+
+    CALL_GUI(eyeControlGUI, width, params_B)
+
+    position = position_C;
+
+    ADD_LABEL("Eye Position Mode")
+
+    if (GuiDropdownBox(GET_RECTANGLE(150, 15), "Semi-Independent;Independent;Sync;Lookat", &mode, eyeDropboxEditMode))
+        eyeDropboxEditMode = !eyeDropboxEditMode;
 }
 
 #endif

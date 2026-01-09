@@ -2,10 +2,8 @@
 
 #include <context.cuh>
 
-DECLARE_WINDOW(fpsWindow, 10, 10, 100, 100)
-
-static void drawFPSWindow(Vector2 p, Vector2 s, Args& a) {
-    DrawFPS(p.x + 5, p.y + 25);
+DECLARE_WINDOW(fpsWindow, 10, 10, 100, 100) {
+    DrawFPS(position.x + scroll.x + 5, position.y + scroll.y + 25);
 }
 
 int main() {
@@ -16,7 +14,7 @@ int main() {
         context.processViewport();
         context.beginRender();
             context.renderViewport();
-            DRAW_WINDOW(fpsWindow, "FPS", drawFPSWindow, context.localArgs)
+            DRAW_WINDOW(fpsWindow, "FPS", context.localArgs)
         context.endRender();
     }
 
