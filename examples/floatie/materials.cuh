@@ -41,7 +41,7 @@ Hit plastic(Hit h, Args a, vec3 col) {
     h.spc = 2;
     h.lth = 0;
 
-    h.trs = 0.2;
+    h.trs = 0.5;
 
     h.normal = BUMP(c_bump, h, 0.002);
 

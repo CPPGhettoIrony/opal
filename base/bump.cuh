@@ -183,6 +183,8 @@ float voronoi(vec3 uv, float randomness, uint seed) {
 __device__
 vec3 bumpNormal(vec2 uv, vec3 normal, vec3 h, float bumpStrength) {
 
+    if(normal == vec3(.0)) return normal;
+
     // Compute gradient (partial derivatives)
     float dx = (h.y - h.x) / EPSILON;
     float dy = (h.z - h.x) / EPSILON;

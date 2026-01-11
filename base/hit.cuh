@@ -18,7 +18,8 @@ struct __align__(16) Hit {
     mat3    rfr;        // object reference rotation    for mapping
     float   rfs = 1;    // object reference scale       for mapping
 
-    vec3    normal;     // Normal of the hit surface
+    vec3    normal = vec3(0.);     
+                        // Normal of the hit surface
     vec3    un;         // Unshaded normal
     
     vec2    uv;         // UV coordinates

@@ -11,54 +11,63 @@
 #include <scene.cuh>
 #include <materials.cuh>
 
-// CACHED RENDERING
 
-#define CACHE_SIDE_HITS             512
-#define CACHE_SCAN_SIDE_DISTANCE    0.5f
+__device__
+float raymarch_zB(vec3 ro, vec3 rd, Args a) {
 
-__device__ 
-size_t getBufferIndex(ivec3 v) {
-    return v.z * blockDim.x*blockDim.y + v.y * blockDim.x + v.x;
+    float t = 0.0;
+
+    for (int i = 0; i < STEPS && t < MAX_DISTANCE; ++i) {
+
+        #ifdef RENDER
+            vec3 p = ro + rd * STEP_SIZE * t;
+        #else 
+            vec3 p = ro + rd * t;
+        #endif
+
+        float d  = scene(p, vec3(0, 0, 0), a).d;
+
+        if (d < EPSILON) {
+            return t;
+        }
+            
+        t += d;
+    }
+
+    return MAX_DISTANCE; // background
 }
 
 __device__
-Hit cachedScene(vec3 p, vec3 c_pos, Hit* hitBuffer) {
+Hit raymarch_simple(vec3 ro, vec3 rd, Args a) {
 
-    vec3 ref = (float)CACHE_SIDE_HITS * (p - c_pos + vec3(CACHE_SCAN_SIDE_DISTANCE)/2.f)/CACHE_SCAN_SIDE_DISTANCE;
+    Hit h;
 
-    ivec3 vec_A(floorf(ref.x), floorf(ref.y), floorf(ref.z));
-    ivec3 vec_B(ceilf(ref.x),  floorf(ref.y), floorf(ref.z));
-    ivec3 vec_C(floorf(ref.x), ceilf(ref.y),  floorf(ref.z));
-    ivec3 vec_D(ceilf(ref.x),  ceilf(ref.y),  floorf(ref.z));
-    ivec3 vec_E(floorf(ref.x), floorf(ref.y),  ceilf(ref.z));
-    ivec3 vec_F(ceilf(ref.x),  floorf(ref.y),  ceilf(ref.z));
-    ivec3 vec_G(floorf(ref.x), ceilf(ref.y),   ceilf(ref.z));
-    ivec3 vec_H(ceilf(ref.x),  ceilf(ref.y),   ceilf(ref.z));
+    float t = 0.0;
 
-    Hit hit_A = hitBuffer[getBufferIndex(vec_A)];
-    Hit hit_B = hitBuffer[getBufferIndex(vec_A)];
-    Hit hit_C = hitBuffer[getBufferIndex(vec_A)];
-    Hit hit_D = hitBuffer[getBufferIndex(vec_A)];
-    Hit hit_E = hitBuffer[getBufferIndex(vec_A)];
-    Hit hit_F = hitBuffer[getBufferIndex(vec_A)];
-    Hit hit_G = hitBuffer[getBufferIndex(vec_A)];
-    Hit hit_H = hitBuffer[getBufferIndex(vec_A)];
+    for (int i = 0; i < STEPS && t < MAX_DISTANCE; ++i) {
 
-    float   fx = ref.x - vec_A.x,
-            fy = ref.y - vec_A.y,
-            fz = ref.z - vec_A.z;
+        #ifdef RENDER
+            vec3 p = ro + rd * STEP_SIZE * t;
+        #else 
+            vec3 p = ro + rd * t;
+        #endif
 
-    Hit hit_I = mix(hit_A, hit_B, fx);
-    Hit hit_J = mix(hit_C, hit_D, fx);
-    Hit hit_K = mix(hit_E, hit_F, fx);
-    Hit hit_L = mix(hit_G, hit_H, fx);
+        h  = scene(p, vec3(0, 0, 0), a);
 
-    Hit hit_M = mix(hit_I, hit_J, fy);
-    Hit hit_N = mix(hit_K, hit_L, fy);
+        if (h.d < EPSILON) {
 
-    Hit ret = mix(hit_M, hit_N, fz);
+            h.dir = normalize(rd);
+            h.len = t;
+            h.hit = true;
+            return h;
+        }
+            
+        t += h.d;
+    }
 
-    ret.pos = p;
+    h.hit = false;
+
+    return h; // background
 }
 
 // Raymarching loop
@@ -111,6 +120,47 @@ Hit raymarch(vec3 ro, vec3 rd, Args a) {
     return h; // background
 }
 
+// Raymarching loop (using zBuffer)
+__device__
+Hit raymarch(vec3 ro, vec3 rd, Args a, uint idx, const float* zBuffer) {
+
+    const vec2 e = vec2(EPSILON, 0.0);
+
+    Hit h, h1, h2, h3, h4, h5, h6;
+
+    float t = zBuffer[idx];
+
+    vec3 p = ro + t*rd;
+
+    h  = scene(p, vec3(0, 0, 0), a);
+
+    if (h.d < EPSILON) {
+
+        h1 = scene(p + vec3(e.x, e.y, e.y), vec3(0, 0, 0), a);
+        h2 = scene(p - vec3(e.x, e.y, e.y), vec3(0, 0, 0), a);
+
+        h3 = scene(p + vec3(e.y, e.x, e.y), vec3(0, 0, 0), a);
+        h4 = scene(p - vec3(e.y, e.x, e.y), vec3(0, 0, 0), a);
+
+        h5 = scene(p + vec3(e.y, e.y, e.x), vec3(0, 0, 0), a);
+        h6 = scene(p - vec3(e.y, e.y, e.x), vec3(0, 0, 0), a);
+
+        vec3 normal = normalize(vec3(h1.d - h2.d, h3.d - h4.d, h5.d - h6.d));
+
+        h = scene(p, normal, a);
+
+        h.dir = normalize(rd);
+        h.len = t;
+        h.hit = true;
+
+        return h;
+    }
+            
+    h.hit = false;
+
+    return h; // background
+}
+
 __device__
 Hit neg_scene(vec3 p, vec3 n, Args a) {
     Hit ret = scene(p, n, a);
@@ -122,9 +172,7 @@ Hit neg_scene(vec3 p, vec3 n, Args a) {
 __device__
 Hit reverse_raymarch(vec3 ro, vec3 rd, Args a) {
 
-    const vec2 e = vec2(EPSILON, 0.0);
-
-    Hit h, h1, h2, h3, h4, h5, h6;
+    Hit h;
 
     float t = 0.0;
 
@@ -135,21 +183,7 @@ Hit reverse_raymarch(vec3 ro, vec3 rd, Args a) {
         h  = neg_scene(p, vec3(0, 0, 0), a);
 
         if (h.d < EPSILON) {
-
-            h1 = neg_scene(p + vec3(e.x, e.y, e.y), vec3(0, 0, 0), a);
-            h2 = neg_scene(p - vec3(e.x, e.y, e.y), vec3(0, 0, 0), a);
-
-            h3 = neg_scene(p + vec3(e.y, e.x, e.y), vec3(0, 0, 0), a);
-            h4 = neg_scene(p - vec3(e.y, e.x, e.y), vec3(0, 0, 0), a);
-
-            h5 = neg_scene(p + vec3(e.y, e.y, e.x), vec3(0, 0, 0), a);
-            h6 = neg_scene(p - vec3(e.y, e.y, e.x), vec3(0, 0, 0), a);
-
-            vec3 normal = normalize(vec3(h1.d - h2.d, h3.d - h4.d, h5.d - h6.d));
-            h.un = normal;
-
-            h = neg_scene(p, normal, a);
-
+            
             h.dir = normalize(rd);
             h.len = t;
             h.hit = true;
@@ -214,7 +248,7 @@ vec3 shadow(vec3 col, Hit h, Light l, Args a) {
 
     vec3 vec = l.point? normalize(h.pos - l.vec) : l.vec;
 
-    Hit shd = raymarch(h.pos + h.normal * vec3(EPSILON * 2), -vec, a);
+    Hit shd = raymarch_simple(h.pos + h.normal * vec3(EPSILON * 2), -vec, a);
 
     if(!shd.hit) return col;
 
@@ -251,49 +285,24 @@ vec3 basic_shading(Hit hit, Light *ls, vec3 viewDir, bool line) {
 }
 
 __device__
-Hit get_other_side(vec3 rd, Hit hit, Light *ls, vec3 viewDir, Args a) {
-
-    Hit thr = reverse_raymarch(hit.pos - hit.normal * vec3(EPSILON * 4.), rd, a);
-    
-    // Solo calculamos luz si realmente golpeamos la cara interna
-    if(thr.hit)
-        thr.col = basic_shading(thr, ls, viewDir, true);
-    else
-        thr.col = hit.col; 
-
-    return thr;
-}
-
-
-__device__
 Hit get_transparency(vec3 rd, Hit hit, Light *ls, vec3 viewDir, Args a) {
 
     // 1. Obtener la cara trasera
-    Hit thr = get_other_side(rd, hit, ls, viewDir, a);
+    Hit thr = reverse_raymarch(hit.pos - hit.normal * vec3(EPSILON * 4.), rd, a);
 
     // SAFETY CHECK PARA NVIDIA:
     // Si el rayo inverso falló (por ejemplo, geometría muy fina o error de float),
-    // abortamos. Usar thr.normal aquí si !thr.hit causaría NaNs (pantalla negra).
-    if(!thr.hit) return thr;
+    // abortamos. Usar thr.normal aquí si !thr.hit causaría NaNs (pantalla negra).y
 
     // 2. Calcular qué hay DETRÁS del objeto transparente
-    Hit next = raymarch(thr.pos - thr.normal * vec3(EPSILON * 4.), thr.dir, a);
+    Hit next = raymarch(thr.pos + rd * vec3(EPSILON * 10.), rd, a);
     
     if(!next.hit) next = world(next, a);
     
     // Mezclar colores
-    thr.col = mix(thr.col, next.col, thr.trs);
-    
-    // 3. ACTUALIZAR EL ESTADO PARA EL BUCLE
-    // Debemos mover la posición para la siguiente iteración
-    thr.pos = next.pos - next.normal * vec3(EPSILON * 4.);
-    
-    // IMPORTANTE: Debemos pasar el estado de hit del objeto SIGUIENTE.
-    // Si next no golpeó nada (es cielo), thr.hit debe ser false para
-    // que el bucle en render() se detenga.
-    thr.hit = next.hit; 
+    next.col = mix(hit.col, next.col, hit.trs);
 
-    return thr;
+    return next;
 }
 
 __device__
@@ -310,11 +319,13 @@ Hit get_reflection(vec3 rd, Hit hit, Light *ls, vec3 viewDir, Args a) {
 }
 
 __device__
-vec4 render(vec3 ro, vec3 rd, Light *ls, Args a) {
+vec4 render(vec3 ro, vec3 rd, Light *ls, Args a, uint idx, const float* distBuffer) {
+
+    //return vec4(vec3(),1.);
 
     vec3 viewDir = normalize(-rd);
 
-    Hit hit = raymarch(ro, rd, a);
+    Hit hit = raymarch(ro, rd, a, idx, distBuffer);
 
     // The skybox (when theres no hit, it renders the skybox, there's nothing to shadow or reflect there)
     if(hit.hit) {

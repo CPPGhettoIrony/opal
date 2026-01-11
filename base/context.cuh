@@ -34,7 +34,7 @@ void check_cuda(cudaError_t result, char const *const func, const char *const fi
 
 __global__
 void renderKernel(uchar4* buffer, int width, int height,
-                  vec3 c_pos, vec3 c_rot, Light* lights, const Args* a)
+                  vec3 c_pos, vec3 c_rot, Light* lights, const Args* a, const float* zBuffer)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -51,11 +51,13 @@ void renderKernel(uchar4* buffer, int width, int height,
     vec3 ro = c_pos;
     vec3 rd = rotationFromEuler(c_rot) * normalize(vec3(normCoord * FOV, 1.0));
 
-    // Render
-    vec4 col = render(ro, rd, lights, *a);
-
     // Escribir en buffer lineal
-    int idx = y * width + x;
+    uint idx = y * width + x;
+
+    // Render
+    vec4 col = render(ro, rd, lights, *a, idx, zBuffer);
+    //vec4 col = vec4(vec3(zBuffer[idx]/MAX_DISTANCE), 1.);
+
     buffer[idx] = make_uchar4(
         (unsigned char)(col.x * 255.0f),
         (unsigned char)(col.y * 255.0f),
@@ -65,21 +67,27 @@ void renderKernel(uchar4* buffer, int width, int height,
 }
 
 __global__ 
-void cachedRender(Hit* hitBuffer, int width, vec3 c_pos, const Args* a) {
+void getZBuffer(float* buffer, int width, int height, vec3 c_pos, vec3 c_rot, const Args* a)
+{
 
-    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
-    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
-    unsigned int z = blockIdx.z * blockDim.z + threadIdx.z;
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= width || y >= height) return;
 
-    size_t index = z * blockDim.x*blockDim.y + y * blockDim.x + x; 
+    // UVs
+    float fx = (float)x / float(width);
+    float fy = 1.0f - (float)y / float(height); 
+    vec2 uv(fx, fy);
+    vec2 resolution(float(width) / float(height), 1.0f);
+    vec2 normCoord = (vec2(2.0f) * uv - vec2(1.0f)) * resolution;
 
-    float fx = (float)x/(float)blockDim.x;
-    float fy = (float)y/(float)blockDim.y;
-    float fz = (float)z/(float)blockDim.z;
+    // Ray
+    vec3 ro = c_pos;
+    vec3 rd = rotationFromEuler(c_rot) * normalize(vec3(normCoord * FOV, 1.0));
 
-    vec3 pos = vec3(fx, fy, fz)*CACHE_SCAN_SIDE_DISTANCE - vec3(CACHE_SCAN_SIDE_DISTANCE*0.5f) + c_pos;
-
-    hitBuffer[index] = scene(pos, vec3(.0), *a);
+    uint idx = y * width + x;
+    
+    buffer[idx] = raymarch_zB(ro, rd, *a);
 
 }
 
@@ -97,7 +105,7 @@ struct Context {
 
     Args localArgs, *deviceArgs;
 
-    Hit* hitBuffer;
+    float* zBuffer;
 
     dim3 block, grid;
 
@@ -114,7 +122,7 @@ struct Context {
         // --- Init ---
         SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_RESIZABLE); // VSync ayuda a no saturar la cola
         InitWindow(1920, 1080, "CUDA Stable Raymarcher");
-        SetTargetFPS(60); // Limitar FPS es clave para no sobrecalentar/saturar
+        //SetTargetFPS(60); // Limitar FPS es clave para no sobrecalentar/saturar
         glewInit();
 
         viewRect.x = (GetScreenWidth()/2 - WIDTH) / 2;
@@ -146,7 +154,7 @@ struct Context {
         // ** AQUÍ ESTA LA CLAVE **
         // Reservamos el buffer de píxeles UNA VEZ. No en el bucle.
         checkCudaErrors(cudaMalloc(&d_pixelBuffer, WIDTH * HEIGHT * sizeof(uchar4)));    
-        //checkCudaErrors(cudaMalloc(&hitBuffer, CACHE_SIDE_HITS * CACHE_SIDE_HITS * CACHE_SIDE_HITS * sizeof(Hit)));  
+        checkCudaErrors(cudaMalloc(&zBuffer, WIDTH * HEIGHT * sizeof(float)));  
     }
 
     __host__
@@ -223,9 +231,11 @@ struct Context {
 
         updateLights<<<1,1>>>(dLights, deviceArgs);
 
+        getZBuffer<<<grid, block>>>(zBuffer, WIDTH, HEIGHT, eye, c_rot, deviceArgs);
+
         // 1. Ejecutar Kernel sobre el buffer persistente (d_pixelBuffer)
         // Esto es pura memoria de GPU, rapidísimo.
-        renderKernel<<<grid, block>>>(d_pixelBuffer, WIDTH, HEIGHT, eye, c_rot, dLights, deviceArgs);
+        renderKernel<<<grid, block>>>(d_pixelBuffer, WIDTH, HEIGHT, eye, c_rot, dLights, deviceArgs, zBuffer);
         checkCudaErrors(cudaDeviceSynchronize());
 
         // Chequeo de errores asíncrono
@@ -278,6 +288,7 @@ struct Context {
         checkCudaErrors(cudaFree(deviceArgs));
         checkCudaErrors(cudaFree(d_pixelBuffer)); // Liberamos el buffer al final
         checkCudaErrors(cudaFree(dLights));
+        checkCudaErrors(cudaFree(zBuffer));
         checkCudaErrors(cudaGraphicsUnregisterResource(cudaTexResource));
         glDeleteTextures(1, &texture.id);
         CloseWindow();
