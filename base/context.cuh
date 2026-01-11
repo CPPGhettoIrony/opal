@@ -64,6 +64,26 @@ void renderKernel(uchar4* buffer, int width, int height,
     );
 }
 
+__global__ 
+void cachedRender(Hit* hitBuffer, int width, vec3 c_pos, const Args* a) {
+
+    unsigned int x = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned int y = blockIdx.y * blockDim.y + threadIdx.y;
+    unsigned int z = blockIdx.z * blockDim.z + threadIdx.z;
+
+    size_t index = z * blockDim.x*blockDim.y + y * blockDim.x + x; 
+
+    float fx = (float)x/(float)blockDim.x;
+    float fy = (float)y/(float)blockDim.y;
+    float fz = (float)z/(float)blockDim.z;
+
+    vec3 pos = vec3(fx, fy, fz)*CACHE_SCAN_SIDE_DISTANCE - vec3(CACHE_SCAN_SIDE_DISTANCE*0.5f) + c_pos;
+
+    hitBuffer[index] = scene(pos, vec3(.0), *a);
+
+}
+
+
 struct Context {
 
     Texture texture;
@@ -77,6 +97,7 @@ struct Context {
 
     Args localArgs, *deviceArgs;
 
+    Hit* hitBuffer;
 
     dim3 block, grid;
 
@@ -124,7 +145,8 @@ struct Context {
 
         // ** AQUÍ ESTA LA CLAVE **
         // Reservamos el buffer de píxeles UNA VEZ. No en el bucle.
-        checkCudaErrors(cudaMalloc(&d_pixelBuffer, WIDTH * HEIGHT * sizeof(uchar4)));      
+        checkCudaErrors(cudaMalloc(&d_pixelBuffer, WIDTH * HEIGHT * sizeof(uchar4)));    
+        //checkCudaErrors(cudaMalloc(&hitBuffer, CACHE_SIDE_HITS * CACHE_SIDE_HITS * CACHE_SIDE_HITS * sizeof(Hit)));  
     }
 
     __host__

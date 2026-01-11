@@ -4,7 +4,7 @@
 #include <glm/glm.hpp>
 using namespace glm;
 
-struct Hit {
+struct __align__(16) Hit {
 
     float   d;          // SDF Distance
     float   len;        // Length of the ray from the origin

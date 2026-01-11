@@ -11,6 +11,56 @@
 #include <scene.cuh>
 #include <materials.cuh>
 
+// CACHED RENDERING
+
+#define CACHE_SIDE_HITS             512
+#define CACHE_SCAN_SIDE_DISTANCE    0.5f
+
+__device__ 
+size_t getBufferIndex(ivec3 v) {
+    return v.z * blockDim.x*blockDim.y + v.y * blockDim.x + v.x;
+}
+
+__device__
+Hit cachedScene(vec3 p, vec3 c_pos, Hit* hitBuffer) {
+
+    vec3 ref = (float)CACHE_SIDE_HITS * (p - c_pos + vec3(CACHE_SCAN_SIDE_DISTANCE)/2.f)/CACHE_SCAN_SIDE_DISTANCE;
+
+    ivec3 vec_A(floorf(ref.x), floorf(ref.y), floorf(ref.z));
+    ivec3 vec_B(ceilf(ref.x),  floorf(ref.y), floorf(ref.z));
+    ivec3 vec_C(floorf(ref.x), ceilf(ref.y),  floorf(ref.z));
+    ivec3 vec_D(ceilf(ref.x),  ceilf(ref.y),  floorf(ref.z));
+    ivec3 vec_E(floorf(ref.x), floorf(ref.y),  ceilf(ref.z));
+    ivec3 vec_F(ceilf(ref.x),  floorf(ref.y),  ceilf(ref.z));
+    ivec3 vec_G(floorf(ref.x), ceilf(ref.y),   ceilf(ref.z));
+    ivec3 vec_H(ceilf(ref.x),  ceilf(ref.y),   ceilf(ref.z));
+
+    Hit hit_A = hitBuffer[getBufferIndex(vec_A)];
+    Hit hit_B = hitBuffer[getBufferIndex(vec_A)];
+    Hit hit_C = hitBuffer[getBufferIndex(vec_A)];
+    Hit hit_D = hitBuffer[getBufferIndex(vec_A)];
+    Hit hit_E = hitBuffer[getBufferIndex(vec_A)];
+    Hit hit_F = hitBuffer[getBufferIndex(vec_A)];
+    Hit hit_G = hitBuffer[getBufferIndex(vec_A)];
+    Hit hit_H = hitBuffer[getBufferIndex(vec_A)];
+
+    float   fx = ref.x - vec_A.x,
+            fy = ref.y - vec_A.y,
+            fz = ref.z - vec_A.z;
+
+    Hit hit_I = mix(hit_A, hit_B, fx);
+    Hit hit_J = mix(hit_C, hit_D, fx);
+    Hit hit_K = mix(hit_E, hit_F, fx);
+    Hit hit_L = mix(hit_G, hit_H, fx);
+
+    Hit hit_M = mix(hit_I, hit_J, fy);
+    Hit hit_N = mix(hit_K, hit_L, fy);
+
+    Hit ret = mix(hit_M, hit_N, fz);
+
+    ret.pos = p;
+}
+
 // Raymarching loop
 __device__
 Hit raymarch(vec3 ro, vec3 rd, Args a) {
