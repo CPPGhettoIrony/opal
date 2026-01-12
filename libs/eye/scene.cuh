@@ -19,9 +19,15 @@ Hit scene(vec3 p, vec3 n, Args args){
     head_hit = eyes(p, head_hit, args.eye_pos, args.eye_rot, args.eye_dim, args.eyes_separation, args.eyes_angle, args.eye1, args.eye2, 
                     n, EYE_A, EYE_B, SKIN, args);
 
-    Hit eyeline_hit = eyeLines(p, args.eye_pos, args.eye_rot, args.eye_dim, args.eyes_separation, args.eyes_angle, args.eyeline_rad, 
+    Hit eyeline_hit = eyeLines(
+        p, args.eye_pos, args.eye_rot * args.eyeline_rot_offset, 
+        args.eye_dim + args.eyeline_dim_offset, 
+        args.eyes_separation + args.eyeline_separation_offset, 
+        args.eyes_angle + args.eyeline_angle_offset, 
+        args.eyeline_rad, 
         args.eyeline_thk, args.eyeline_len, 
-        args.eyeline_off, args.eye1, args.eye2, n, MASC, args);
+        args.eyeline_off, args.eye1, args.eye2, n, MASC, args
+    );
 
     return join(head_hit, eyeline_hit);
 
